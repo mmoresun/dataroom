@@ -1,11 +1,10 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { FolderPlus, Upload } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
-import { NodeRow } from '@/components/NodeRow';
+import { Toolbar } from '@/components/Toolbar';
+import { NodeList } from '@/components/NodeList';
 import { CreateFolderDialog } from '@/components/CreateFolderDialog';
 import { RenameDialog } from '@/components/RenameDialog';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
@@ -21,13 +20,11 @@ export function DataRoomPage() {
   const folderId = id ?? ROOT_ID;
 
   const room = useDataRoom(folderId);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isCreateFolderOpen, setCreateFolderOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<DataRoomNode | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DataRoomNode | null>(null);
   const [viewFile, setViewFile] = useState<FileNode | null>(null);
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
 
   // Hold a cross-tab "in use" lock on the folder currently being browsed, so another
@@ -43,7 +40,7 @@ export function DataRoomPage() {
     else setViewFile(node);
   };
 
-  const handleUploadFiles = async (files: FileList | File[]) => {
+  const handleUploadFiles = async (files: FileList) => {
     const list = Array.from(files);
     let uploaded = 0;
     const skipped: string[] = [];
@@ -62,12 +59,6 @@ export function DataRoomPage() {
 
     if (uploaded > 0) toast.success(uploaded === 1 ? 'File uploaded' : `${uploaded} files uploaded`);
     skipped.forEach((message) => toast.error(`Skipped ${message}`));
-  };
-
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDraggingOver(false);
-    if (e.dataTransfer.files.length > 0) void handleUploadFiles(e.dataTransfer.files);
   };
 
   const handleCreateFolder = async (name: string) => {
@@ -103,70 +94,24 @@ export function DataRoomPage() {
           path={room.breadcrumb}
           onNavigate={(fid) => navigate(fid ? `/folder/${fid}` : '/')}
         />
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setCreateFolderOpen(true)}>
-            <FolderPlus className="size-4" />
-            New folder
-          </Button>
-          <Button onClick={() => fileInputRef.current?.click()}>
-            <Upload className="size-4" />
-            Upload PDF
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/pdf,.pdf"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files) void handleUploadFiles(e.target.files);
-              e.target.value = '';
-            }}
-          />
-        </div>
+        <Toolbar
+          onCreateFolderClick={() => setCreateFolderOpen(true)}
+          onFilesSelected={(files) => void handleUploadFiles(files)}
+        />
       </div>
 
-      {room.error && (
-        <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {room.error}
-        </div>
-      )}
-
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDraggingOver(true);
-        }}
-        onDragLeave={() => setIsDraggingOver(false)}
-        onDrop={handleDrop}
-        className={`min-h-64 flex-1 rounded-lg border-2 border-dashed p-2 transition-colors ${
-          isDraggingOver ? 'border-primary bg-accent/50' : 'border-transparent'
-        }`}
-      >
-        {room.isLoading ? (
-          <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-        ) : room.children.length === 0 ? (
-          <div className="flex h-64 flex-col items-center justify-center gap-1 text-center text-sm text-muted-foreground">
-            <p>This folder is empty.</p>
-            <p>Drop a PDF here, or use the buttons above to get started.</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-0.5">
-            {room.children.map((node) => (
-              <NodeRow
-                key={node.id}
-                node={node}
-                itemCount={node.type === 'folder' ? room.folderItemCounts.get(node.id) : undefined}
-                shouldFocus={node.id === focusNodeId}
-                onFocusHandled={() => setFocusNodeId(null)}
-                onOpen={handleOpen}
-                onRename={setRenameTarget}
-                onDelete={setDeleteTarget}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      <NodeList
+        nodes={room.children}
+        isLoading={room.isLoading}
+        error={room.error}
+        folderItemCounts={room.folderItemCounts}
+        focusNodeId={focusNodeId}
+        onFocusHandled={() => setFocusNodeId(null)}
+        onOpen={handleOpen}
+        onRename={setRenameTarget}
+        onDelete={setDeleteTarget}
+        onFilesDropped={(files) => void handleUploadFiles(files)}
+      />
 
       <CreateFolderDialog
         open={isCreateFolderOpen}
