@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
@@ -37,9 +37,17 @@ export function DataRoomPage() {
 
   // The folder we're pointed at (via a stale bookmark, browser history, or another
   // tab deleting it) may no longer exist. Bounce to the root rather than silently
-  // rendering an empty listing with a broken breadcrumb.
+  // rendering an empty listing with a broken breadcrumb. Guarded with a ref (not just
+  // the dependency array) because React StrictMode re-invokes effects on every commit
+  // in development, which would otherwise fire this toast/navigate twice.
+  const hasHandledNotFound = useRef(false);
   useEffect(() => {
-    if (!room.notFound) return;
+    if (!room.notFound) {
+      hasHandledNotFound.current = false;
+      return;
+    }
+    if (hasHandledNotFound.current) return;
+    hasHandledNotFound.current = true;
     toast.error('This folder no longer exists.');
     navigate('/', { replace: true });
   }, [room.notFound, navigate]);
