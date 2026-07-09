@@ -1,25 +1,36 @@
-import { FileText, Folder } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { NodeActionsMenu } from '@/components/NodeActionsMenu';
 import { useFocusHighlight } from '@/hooks/useFocusHighlight';
 import { useIsTruncated } from '@/hooks/useIsTruncated';
 import type { DataRoomNode } from '@/lib/db/schema';
-import { formatBytes, formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/format';
 
-interface NodeRowProps {
-  node: DataRoomNode;
-  /** Direct child count, only meaningful (and passed) when node.type === 'folder'. */
-  itemCount?: number;
+interface NodeRowShellProps<T extends DataRoomNode> {
+  node: T;
+  icon: ReactNode;
+  /** Right-aligned-ish meta text shown before the date column, e.g. "12 items" or "1.2 MB". */
+  metaText: string;
   /** True right after this node was created or renamed, so it can grab focus and flash once. */
   shouldFocus?: boolean;
   /** Called once shouldFocus has been acted on, so the parent can reset it. */
   onFocusHandled?: () => void;
-  onOpen: (node: DataRoomNode) => void;
-  onRename: (node: DataRoomNode) => void;
-  onDelete: (node: DataRoomNode) => void;
+  onOpen: (node: T) => void;
+  onRename: (node: T) => void;
+  onDelete: (node: T) => void;
 }
 
-export function NodeRow({ node, itemCount, shouldFocus, onFocusHandled, onOpen, onRename, onDelete }: NodeRowProps) {
+/** Shared row chrome (container, icon slot, truncated-name tooltip, meta/date columns, actions menu) used by FolderRow and FileRow. */
+export function NodeRowShell<T extends DataRoomNode>({
+  node,
+  icon,
+  metaText,
+  shouldFocus,
+  onFocusHandled,
+  onOpen,
+  onRename,
+  onDelete,
+}: NodeRowShellProps<T>) {
   const { ref: openButtonRef, isHighlighted } = useFocusHighlight<HTMLButtonElement>(shouldFocus, onFocusHandled);
   const { ref: nameRef, isTruncated } = useIsTruncated<HTMLSpanElement>();
 
@@ -36,11 +47,7 @@ export function NodeRow({ node, itemCount, shouldFocus, onFocusHandled, onOpen, 
         aria-label={node.name}
         className="flex min-w-0 flex-1 items-center gap-3 text-left"
       >
-        {node.type === 'folder' ? (
-          <Folder className="size-5 shrink-0 fill-amber-400/25 text-amber-500 dark:text-amber-400" aria-hidden="true" />
-        ) : (
-          <FileText className="size-5 shrink-0 fill-red-400/15 text-red-500 dark:text-red-400" aria-hidden="true" />
-        )}
+        {icon}
         {isTruncated ? (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -58,11 +65,7 @@ export function NodeRow({ node, itemCount, shouldFocus, onFocusHandled, onOpen, 
           </span>
         )}
         <span className="hidden shrink-0 text-xs text-muted-foreground sm:block" aria-hidden="true">
-          {node.type === 'file'
-            ? formatBytes(node.size)
-            : itemCount !== undefined
-              ? `${itemCount} item${itemCount === 1 ? '' : 's'}`
-              : ''}
+          {metaText}
         </span>
         <span
           className="hidden w-36 shrink-0 text-right text-xs text-muted-foreground md:block"
@@ -72,7 +75,9 @@ export function NodeRow({ node, itemCount, shouldFocus, onFocusHandled, onOpen, 
         </span>
       </button>
 
-      <NodeActionsMenu node={node} onRename={onRename} onDelete={onDelete} />
+      {/* NodeActionsMenu is typed against the DataRoomNode union; narrowing back to T is safe
+          since it always calls back with the exact `node` object passed in above. */}
+      <NodeActionsMenu node={node} onRename={(n) => onRename(n as T)} onDelete={(n) => onDelete(n as T)} />
     </div>
   );
 }

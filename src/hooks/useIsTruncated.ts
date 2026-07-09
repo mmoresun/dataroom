@@ -6,7 +6,9 @@ export function useIsTruncated<T extends HTMLElement>() {
   const [isTruncated, setIsTruncated] = useState(false);
 
   // No dependency array: re-checks after every render (e.g. the name itself changed),
-  // not just on mount/resize.
+  // not just on mount/resize. Safe from the infinite-loop the lint rule warns about,
+  // since setIsTruncated is a no-op render when the computed value hasn't changed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;

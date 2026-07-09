@@ -1,5 +1,6 @@
-import { useState, type DragEvent } from 'react';
-import { NodeRow } from '@/components/NodeRow';
+import { FolderRow } from '@/components/FolderRow';
+import { FileRow } from '@/components/FileRow';
+import { UploadDropzone } from '@/components/UploadDropzone';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { DataRoomNode, NodeId } from '@/lib/db/schema';
 
@@ -29,14 +30,6 @@ export function NodeList({
   onDelete,
   onFilesDropped,
 }: NodeListProps) {
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
-
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDraggingOver(false);
-    if (e.dataTransfer.files.length > 0) onFilesDropped(e.dataTransfer.files);
-  };
-
   return (
     <>
       {error && (
@@ -45,17 +38,7 @@ export function NodeList({
         </div>
       )}
 
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDraggingOver(true);
-        }}
-        onDragLeave={() => setIsDraggingOver(false)}
-        onDrop={handleDrop}
-        className={`min-h-64 flex-1 rounded-lg border-2 border-dashed p-2 transition-colors ${
-          isDraggingOver ? 'border-primary bg-accent/50' : 'border-transparent'
-        }`}
-      >
+      <UploadDropzone onFilesDropped={onFilesDropped}>
         {isLoading ? (
           <div className="flex flex-col gap-0.5" aria-busy="true" aria-label="Loading folder contents">
             {Array.from({ length: 6 }, (_, i) => (
@@ -69,26 +52,38 @@ export function NodeList({
           </div>
         ) : (
           <div className="flex flex-col gap-0.5">
-            {nodes.map((node) => (
-              <NodeRow
-                key={node.id}
-                node={node}
-                itemCount={node.type === 'folder' ? folderItemCounts.get(node.id) : undefined}
-                shouldFocus={node.id === focusNodeId}
-                onFocusHandled={onFocusHandled}
-                onOpen={onOpen}
-                onRename={onRename}
-                onDelete={onDelete}
-              />
-            ))}
+            {nodes.map((node) =>
+              node.type === 'folder' ? (
+                <FolderRow
+                  key={node.id}
+                  node={node}
+                  itemCount={folderItemCounts.get(node.id)}
+                  shouldFocus={node.id === focusNodeId}
+                  onFocusHandled={onFocusHandled}
+                  onOpen={onOpen}
+                  onRename={onRename}
+                  onDelete={onDelete}
+                />
+              ) : (
+                <FileRow
+                  key={node.id}
+                  node={node}
+                  shouldFocus={node.id === focusNodeId}
+                  onFocusHandled={onFocusHandled}
+                  onOpen={onOpen}
+                  onRename={onRename}
+                  onDelete={onDelete}
+                />
+              ),
+            )}
           </div>
         )}
-      </div>
+      </UploadDropzone>
     </>
   );
 }
 
-/** Placeholder row matching NodeRow's layout, shown in a stack while a folder's contents load. */
+/** Placeholder row matching the real rows' layout, shown in a stack while a folder's contents load. */
 function SkeletonRow() {
   return (
     <div className="flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5">
