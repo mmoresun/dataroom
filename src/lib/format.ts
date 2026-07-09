@@ -15,3 +15,15 @@ export function formatDate(timestamp: number): string {
     minute: '2-digit',
   });
 }
+
+/** Delete-confirmation copy for a folder-shaped item (a folder or a dataroom) given its top-level contents. */
+export function folderWarning(name: string, fileCount: number, folderCount: number): string {
+  if (fileCount === 0 && folderCount === 0) {
+    return `"${name}" and everything inside it will be permanently deleted. This can't be undone.`;
+  }
+  const parts = [
+    fileCount > 0 ? `${fileCount} file${fileCount === 1 ? '' : 's'}` : null,
+    folderCount > 0 ? `${folderCount} folder${folderCount === 1 ? '' : 's'}` : null,
+  ].filter(Boolean);
+  return `"${name}" contains ${parts.join(' and ')} at the top level. Everything inside — including anything nested deeper — will be permanently deleted. This can't be undone.`;
+}

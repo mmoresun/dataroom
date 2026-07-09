@@ -1,36 +1,23 @@
-import type { ReactNode } from 'react';
+import { Database } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { NodeActionsMenu } from '@/components/NodeActionsMenu';
 import { useFocusHighlight } from '@/hooks/useFocusHighlight';
 import { useIsTruncated } from '@/hooks/useIsTruncated';
-import type { DataRoomNode } from '@/lib/db/schema';
+import type { DataRoom } from '@/lib/db/schema';
 import { formatDate } from '@/lib/format';
 
-interface NodeRowShellProps<T extends DataRoomNode> {
-  node: T;
-  icon: ReactNode;
-  /** Right-aligned-ish meta text shown before the date column, e.g. "12 items" or "1.2 MB". */
-  metaText: string;
-  /** True right after this node was created or renamed, so it can grab focus and flash once. */
+interface DataRoomRowProps {
+  room: DataRoom;
+  /** Direct child count, shown as "N items". Undefined while still loading. */
+  itemCount: number | undefined;
   shouldFocus?: boolean;
-  /** Called once shouldFocus has been acted on, so the parent can reset it. */
   onFocusHandled?: () => void;
-  onOpen: (node: T) => void;
-  onRename: (node: T) => void;
-  onDelete: (node: T) => void;
+  onOpen: (room: DataRoom) => void;
+  onRename: (room: DataRoom) => void;
+  onDelete: (room: DataRoom) => void;
 }
 
-/** Shared row chrome (container, icon slot, truncated-name tooltip, meta/date columns, actions menu) used by FolderRow and FileRow. */
-export function NodeRowShell<T extends DataRoomNode>({
-  node,
-  icon,
-  metaText,
-  shouldFocus,
-  onFocusHandled,
-  onOpen,
-  onRename,
-  onDelete,
-}: NodeRowShellProps<T>) {
+export function DataRoomRow({ room, itemCount, shouldFocus, onFocusHandled, onOpen, onRename, onDelete }: DataRoomRowProps) {
   const { ref: openButtonRef, isHighlighted } = useFocusHighlight<HTMLButtonElement>(shouldFocus, onFocusHandled);
   const { ref: nameRef, isTruncated } = useIsTruncated<HTMLSpanElement>();
 
@@ -43,39 +30,39 @@ export function NodeRowShell<T extends DataRoomNode>({
       <button
         ref={openButtonRef}
         type="button"
-        onClick={() => onOpen(node)}
-        aria-label={node.name}
+        onClick={() => onOpen(room)}
+        aria-label={room.name}
         className="flex min-w-0 flex-1 items-center gap-3 text-left"
       >
-        {icon}
+        <Database className="size-5 shrink-0 fill-amber-400/25 text-amber-500 dark:text-amber-400" aria-hidden="true" />
         {isTruncated ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <span ref={nameRef} className="min-w-0 flex-1 truncate text-sm font-medium" aria-hidden="true">
-                {node.name}
+                {room.name}
               </span>
             </TooltipTrigger>
             <TooltipContent side="top" align="start" className="max-w-80 break-words">
-              {node.name}
+              {room.name}
             </TooltipContent>
           </Tooltip>
         ) : (
           <span ref={nameRef} className="min-w-0 flex-1 truncate text-sm font-medium" aria-hidden="true">
-            {node.name}
+            {room.name}
           </span>
         )}
         <span className="hidden shrink-0 text-xs text-muted-foreground sm:block" aria-hidden="true">
-          {metaText}
+          {itemCount !== undefined ? `${itemCount} item${itemCount === 1 ? '' : 's'}` : ''}
         </span>
         <span
           className="hidden w-36 shrink-0 text-right text-xs text-muted-foreground md:block"
           aria-hidden="true"
         >
-          {formatDate(node.createdAt)}
+          {formatDate(room.createdAt)}
         </span>
       </button>
 
-      <NodeActionsMenu node={node} onRename={onRename} onDelete={onDelete} />
+      <NodeActionsMenu node={room} onRename={onRename} onDelete={onDelete} />
     </div>
   );
 }

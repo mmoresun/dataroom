@@ -1,7 +1,12 @@
 export type NodeId = string;
+export type DataRoomId = string;
 
-/** Virtual root folder. Never stored as a node — just the parentId sentinel for top-level items. */
-export const ROOT_ID: NodeId = 'root';
+export interface DataRoom {
+  id: DataRoomId;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+}
 
 interface BaseNode {
   id: NodeId;

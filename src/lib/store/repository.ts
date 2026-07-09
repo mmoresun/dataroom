@@ -1,10 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db/db';
-import { ROOT_ID, type DataRoomNode, type FileNode, type FolderNode, type NodeId } from '@/lib/db/schema';
+import type { DataRoom, DataRoomId, DataRoomNode, FileNode, FolderNode, NodeId } from '@/lib/db/schema';
 import { isOpenElsewhere } from '@/lib/store/viewLock';
 import { formatBytes } from '@/lib/format';
-
-export { ROOT_ID };
 
 export class RepositoryError extends Error {}
 
@@ -50,7 +48,7 @@ async function siblingNames(parentId: NodeId, excludeId?: NodeId): Promise<Set<s
   return new Set(siblings.filter((n) => n.id !== excludeId).map((n) => n.name));
 }
 
-export async function listChildren(parentId: NodeId = ROOT_ID): Promise<DataRoomNode[]> {
+export async function listChildren(parentId: NodeId): Promise<DataRoomNode[]> {
   const db = await getDb();
   const children = await db.getAllFromIndex('nodes', 'by-parent', parentId);
   return children.sort((a, b) => {
@@ -70,11 +68,11 @@ export async function countChildren(parentId: NodeId): Promise<number> {
   return db.countFromIndex('nodes', 'by-parent', parentId);
 }
 
-/** Path from the (virtual) root down to and including `id`. Empty array if id is ROOT_ID. */
-export async function getBreadcrumb(id: NodeId): Promise<DataRoomNode[]> {
+/** Path from the dataroom's root down to and including `id`. Empty array if id === rootId. */
+export async function getBreadcrumb(id: NodeId, rootId: DataRoomId): Promise<DataRoomNode[]> {
   const path: DataRoomNode[] = [];
   let current = id;
-  while (current !== ROOT_ID) {
+  while (current !== rootId) {
     const node = await getNode(current);
     if (!node) break;
     path.unshift(node);
@@ -83,7 +81,7 @@ export async function getBreadcrumb(id: NodeId): Promise<DataRoomNode[]> {
   return path;
 }
 
-export async function createFolder(name: string, parentId: NodeId = ROOT_ID): Promise<FolderNode> {
+export async function createFolder(name: string, parentId: NodeId): Promise<FolderNode> {
   const trimmed = name.trim();
   if (!trimmed) throw new RepositoryError('Folder name cannot be empty.');
 
@@ -104,7 +102,7 @@ export async function createFolder(name: string, parentId: NodeId = ROOT_ID): Pr
 
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
-export async function uploadFile(file: File, parentId: NodeId = ROOT_ID): Promise<FileNode> {
+export async function uploadFile(file: File, parentId: NodeId): Promise<FileNode> {
   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   if (!isPdf) throw new RepositoryError('Only PDF files are supported.');
   if (file.size === 0) throw new RepositoryError('The file is empty.');
@@ -168,15 +166,13 @@ export async function renameNode(id: NodeId, newName: string): Promise<DataRoomN
   return updated;
 }
 
-/** Recursively collects a node and every descendant (files and folders), itself included. */
-async function collectSubtree(node: DataRoomNode): Promise<DataRoomNode[]> {
-  if (node.type !== 'folder') return [node];
-
+/** Recursively collects every descendant (files and folders) of `parentId`, not including itself. */
+async function collectSubtree(parentId: NodeId): Promise<DataRoomNode[]> {
   const db = await getDb();
-  const nodes: DataRoomNode[] = [node];
-  const children = await db.getAllFromIndex('nodes', 'by-parent', node.id);
+  const children = await db.getAllFromIndex('nodes', 'by-parent', parentId);
+  const nodes: DataRoomNode[] = [...children];
   for (const child of children) {
-    nodes.push(...(await collectSubtree(child)));
+    if (child.type === 'folder') nodes.push(...(await collectSubtree(child.id)));
   }
   return nodes;
 }
@@ -194,7 +190,7 @@ export async function deleteNode(id: NodeId): Promise<void> {
   const node = await db.get('nodes', id);
   if (!node) return;
 
-  const subtree = await collectSubtree(node);
+  const subtree = [node, ...(await collectSubtree(id))];
 
   const openNode = await findOpenNode(subtree);
   if (openNode) {
@@ -207,6 +203,80 @@ export async function deleteNode(id: NodeId): Promise<void> {
   await Promise.all([
     ...subtree.map((n) => tx.objectStore('nodes').delete(n.id)),
     ...subtree.map((n) => tx.objectStore('blobs').delete(n.id)),
+    tx.done,
+  ]);
+}
+
+async function dataRoomNames(excludeId?: DataRoomId): Promise<Set<string>> {
+  const db = await getDb();
+  const rooms = await db.getAll('datarooms');
+  return new Set(rooms.filter((r) => r.id !== excludeId).map((r) => r.name));
+}
+
+export async function listDataRooms(): Promise<DataRoom[]> {
+  const db = await getDb();
+  const rooms = await db.getAll('datarooms');
+  return rooms.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+}
+
+export async function getDataRoom(id: DataRoomId): Promise<DataRoom | undefined> {
+  const db = await getDb();
+  return db.get('datarooms', id);
+}
+
+export async function createDataRoom(name: string): Promise<DataRoom> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new RepositoryError('Dataroom name cannot be empty.');
+
+  const db = await getDb();
+  const finalName = resolveUniqueName(await dataRoomNames(), trimmed);
+  const now = Date.now();
+  const room: DataRoom = { id: uuidv4(), name: finalName, createdAt: now, updatedAt: now };
+  await db.put('datarooms', room);
+  return room;
+}
+
+export async function renameDataRoom(id: DataRoomId, newName: string): Promise<DataRoom> {
+  const trimmed = newName.trim();
+  if (!trimmed) throw new RepositoryError('Name cannot be empty.');
+
+  const db = await getDb();
+  const room = await db.get('datarooms', id);
+  if (!room) throw new RepositoryError('Dataroom no longer exists.');
+
+  if (await isOpenElsewhere(id)) {
+    throw new RepositoryError(`"${room.name}" is open in another tab. Close it there before renaming.`);
+  }
+
+  if ((await dataRoomNames(id)).has(trimmed)) {
+    throw new DuplicateNameError(`A dataroom named "${trimmed}" already exists.`);
+  }
+
+  const updated: DataRoom = { ...room, name: trimmed, updatedAt: Date.now() };
+  await db.put('datarooms', updated);
+  return updated;
+}
+
+export async function deleteDataRoom(id: DataRoomId): Promise<void> {
+  const db = await getDb();
+  const room = await db.get('datarooms', id);
+  if (!room) return;
+
+  if (await isOpenElsewhere(id)) {
+    throw new RepositoryError(`"${room.name}" is open in another tab. Close it there before deleting.`);
+  }
+
+  const subtree = await collectSubtree(id);
+  const openNode = await findOpenNode(subtree);
+  if (openNode) {
+    throw new RepositoryError(`"${openNode.name}" is open in another tab. Close it there before deleting.`);
+  }
+
+  const tx = db.transaction(['nodes', 'blobs', 'datarooms'], 'readwrite');
+  await Promise.all([
+    ...subtree.map((n) => tx.objectStore('nodes').delete(n.id)),
+    ...subtree.map((n) => tx.objectStore('blobs').delete(n.id)),
+    tx.objectStore('datarooms').delete(id),
     tx.done,
   ]);
 }

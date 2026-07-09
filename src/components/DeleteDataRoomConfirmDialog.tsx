@@ -9,34 +9,33 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { DataRoomNode } from '@/lib/db/schema';
+import type { DataRoom } from '@/lib/db/schema';
 import { folderWarning } from '@/lib/format';
 import { listChildren } from '@/lib/store/repository';
 
-interface DeleteConfirmDialogProps {
-  node: DataRoomNode | null;
+interface DeleteDataRoomConfirmDialogProps {
+  room: DataRoom | null;
   onOpenChange: (open: boolean) => void;
   onConfirm: (id: string) => void;
 }
 
-export function DeleteConfirmDialog({ node, onOpenChange, onConfirm }: DeleteConfirmDialogProps) {
+export function DeleteDataRoomConfirmDialog({ room, onOpenChange, onConfirm }: DeleteDataRoomConfirmDialogProps) {
   return (
-    <AlertDialog open={node !== null} onOpenChange={onOpenChange}>
+    <AlertDialog open={room !== null} onOpenChange={onOpenChange}>
       <AlertDialogContent>
-        {/* Keyed by node id so child-count state resets fresh whenever a different node is targeted. */}
-        {node && <DeleteConfirmBody key={node.id} node={node} onConfirm={onConfirm} />}
+        {/* Keyed by room id so child-count state resets fresh whenever a different room is targeted. */}
+        {room && <DeleteConfirmBody key={room.id} room={room} onConfirm={onConfirm} />}
       </AlertDialogContent>
     </AlertDialog>
   );
 }
 
-function DeleteConfirmBody({ node, onConfirm }: { node: DataRoomNode; onConfirm: (id: string) => void }) {
+function DeleteConfirmBody({ room, onConfirm }: { room: DataRoom; onConfirm: (id: string) => void }) {
   const [counts, setCounts] = useState<{ fileCount: number; folderCount: number } | null>(null);
 
   useEffect(() => {
-    if (node.type !== 'folder') return;
     let cancelled = false;
-    void listChildren(node.id).then((children) => {
+    void listChildren(room.id).then((children) => {
       if (cancelled) return;
       setCounts({
         fileCount: children.filter((c) => c.type === 'file').length,
@@ -46,23 +45,21 @@ function DeleteConfirmBody({ node, onConfirm }: { node: DataRoomNode; onConfirm:
     return () => {
       cancelled = true;
     };
-  }, [node.id, node.type]);
+  }, [room.id]);
 
   return (
     <>
       <AlertDialogHeader>
-        <AlertDialogTitle>Delete {node.type === 'folder' ? 'folder' : 'file'}?</AlertDialogTitle>
+        <AlertDialogTitle>Delete dataroom?</AlertDialogTitle>
         <AlertDialogDescription>
-          {node.type === 'folder'
-            ? counts && folderWarning(node.name, counts.fileCount, counts.folderCount)
-            : `"${node.name}" will be permanently deleted. This can't be undone.`}
+          {counts && folderWarning(room.name, counts.fileCount, counts.folderCount)}
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <AlertDialogAction
           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          onClick={() => onConfirm(node.id)}
+          onClick={() => onConfirm(room.id)}
         >
           Delete
         </AlertDialogAction>

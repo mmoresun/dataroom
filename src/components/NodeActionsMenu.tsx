@@ -7,16 +7,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import type { DataRoomNode } from '@/lib/db/schema';
 
-interface NodeActionsMenuProps {
-  node: DataRoomNode;
-  onRename: (node: DataRoomNode) => void;
-  onDelete: (node: DataRoomNode) => void;
+interface NodeActionsMenuProps<T extends { name: string }> {
+  node: T;
+  onRename: (node: T) => void;
+  onDelete: (node: T) => void;
 }
 
-/** The "⋮" rename/delete menu for a single node, with a tooltip on its trigger. */
-export function NodeActionsMenu({ node, onRename, onDelete }: NodeActionsMenuProps) {
+/** The "⋮" rename/delete menu for a single row (folder, file, or dataroom), with a tooltip on its trigger. */
+export function NodeActionsMenu<T extends { name: string }>({ node, onRename, onDelete }: NodeActionsMenuProps<T>) {
   return (
     <DropdownMenu>
       <Tooltip>

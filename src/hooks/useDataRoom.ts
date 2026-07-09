@@ -1,19 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { DataRoomNode, NodeId } from '@/lib/db/schema';
-import { ROOT_ID } from '@/lib/db/schema';
+import type { DataRoomId, DataRoomNode, NodeId } from '@/lib/db/schema';
 import * as repo from '@/lib/store/repository';
 
 /**
- * Loads and mutates the contents of a single folder. Re-fetches from IndexedDB
- * after every mutation rather than patching local state, since this is a thin
+ * Loads and mutates the contents of a single folder within a dataroom. Re-fetches from
+ * IndexedDB after every mutation rather than patching local state, since this is a thin
  * mock layer and correctness matters more than avoiding a re-read.
  */
-export function useDataRoom(folderId: NodeId = ROOT_ID) {
+export function useDataRoom(roomId: DataRoomId, folderId: NodeId = roomId) {
   const [children, setChildren] = useState<DataRoomNode[]>([]);
   const [breadcrumb, setBreadcrumb] = useState<DataRoomNode[]>([]);
   const [folderItemCounts, setFolderItemCounts] = useState<Map<NodeId, number>>(new Map());
+  const [roomName, setRoomName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // True once we've confirmed the dataroom itself no longer exists (e.g. deleted from
+  // another tab). Distinct from `notFound` (the folder is gone but the room is fine).
+  const [roomNotFound, setRoomNotFound] = useState(false);
   // True once we've confirmed folderId doesn't exist anymore (e.g. deleted from
   // another tab, then revisited via a stale bookmark/back-button/history entry).
   const [notFound, setNotFound] = useState(false);
@@ -21,7 +24,20 @@ export function useDataRoom(folderId: NodeId = ROOT_ID) {
   const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
-      if (folderId !== ROOT_ID && !(await repo.getNode(folderId))) {
+      const room = await repo.getDataRoom(roomId);
+      if (!room) {
+        setRoomNotFound(true);
+        setNotFound(false);
+        setChildren([]);
+        setBreadcrumb([]);
+        setFolderItemCounts(new Map());
+        setError(null);
+        return;
+      }
+      setRoomNotFound(false);
+      setRoomName(room.name);
+
+      if (folderId !== roomId && !(await repo.getNode(folderId))) {
         setNotFound(true);
         setChildren([]);
         setBreadcrumb([]);
@@ -33,7 +49,7 @@ export function useDataRoom(folderId: NodeId = ROOT_ID) {
 
       const [nextChildren, nextBreadcrumb] = await Promise.all([
         repo.listChildren(folderId),
-        repo.getBreadcrumb(folderId),
+        repo.getBreadcrumb(folderId, roomId),
       ]);
       setChildren(nextChildren);
       setBreadcrumb(nextBreadcrumb);
@@ -47,7 +63,7 @@ export function useDataRoom(folderId: NodeId = ROOT_ID) {
     } finally {
       setIsLoading(false);
     }
-  }, [folderId]);
+  }, [roomId, folderId]);
 
   useEffect(() => {
     // Fetch-on-mount/folder-change pattern: refresh() sets isLoading synchronously
@@ -71,8 +87,10 @@ export function useDataRoom(folderId: NodeId = ROOT_ID) {
     children,
     breadcrumb,
     folderItemCounts,
+    roomName,
     isLoading,
     error,
+    roomNotFound,
     notFound,
     createFolder: (name: string) => runMutation(() => repo.createFolder(name, folderId)),
     uploadFile: (file: File) => runMutation(() => repo.uploadFile(file, folderId)),
