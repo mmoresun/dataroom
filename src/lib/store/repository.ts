@@ -126,12 +126,19 @@ export async function uploadFile(file: File, parentId: NodeId = ROOT_ID): Promis
     mimeType: file.type || 'application/pdf',
   };
 
-  const tx = db.transaction(['nodes', 'blobs'], 'readwrite');
-  await Promise.all([
-    tx.objectStore('nodes').put(node),
-    tx.objectStore('blobs').put(file, node.id),
-    tx.done,
-  ]);
+  try {
+    const tx = db.transaction(['nodes', 'blobs'], 'readwrite');
+    await Promise.all([
+      tx.objectStore('nodes').put(node),
+      tx.objectStore('blobs').put(file, node.id),
+      tx.done,
+    ]);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'QuotaExceededError') {
+      throw new RepositoryError('Not enough storage space to save this file. Free up space and try again.');
+    }
+    throw err;
+  }
   return node;
 }
 

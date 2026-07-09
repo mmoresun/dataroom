@@ -14,10 +14,23 @@ export function useDataRoom(folderId: NodeId = ROOT_ID) {
   const [folderItemCounts, setFolderItemCounts] = useState<Map<NodeId, number>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // True once we've confirmed folderId doesn't exist anymore (e.g. deleted from
+  // another tab, then revisited via a stale bookmark/back-button/history entry).
+  const [notFound, setNotFound] = useState(false);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
+      if (folderId !== ROOT_ID && !(await repo.getNode(folderId))) {
+        setNotFound(true);
+        setChildren([]);
+        setBreadcrumb([]);
+        setFolderItemCounts(new Map());
+        setError(null);
+        return;
+      }
+      setNotFound(false);
+
       const [nextChildren, nextBreadcrumb] = await Promise.all([
         repo.listChildren(folderId),
         repo.getBreadcrumb(folderId),
@@ -60,6 +73,7 @@ export function useDataRoom(folderId: NodeId = ROOT_ID) {
     folderItemCounts,
     isLoading,
     error,
+    notFound,
     createFolder: (name: string) => runMutation(() => repo.createFolder(name, folderId)),
     uploadFile: (file: File) => runMutation(() => repo.uploadFile(file, folderId)),
     renameNode: (id: NodeId, newName: string) => runMutation(() => repo.renameNode(id, newName)),

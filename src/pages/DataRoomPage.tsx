@@ -35,6 +35,15 @@ export function DataRoomPage() {
     return holdViewLock(folderId);
   }, [folderId]);
 
+  // The folder we're pointed at (via a stale bookmark, browser history, or another
+  // tab deleting it) may no longer exist. Bounce to the root rather than silently
+  // rendering an empty listing with a broken breadcrumb.
+  useEffect(() => {
+    if (!room.notFound) return;
+    toast.error('This folder no longer exists.');
+    navigate('/', { replace: true });
+  }, [room.notFound, navigate]);
+
   const handleOpen = (node: DataRoomNode) => {
     if (node.type === 'folder') navigate(`/folder/${node.id}`);
     else setViewFile(node);
