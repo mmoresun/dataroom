@@ -2,6 +2,7 @@ import { FileText, Folder } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { NodeActionsMenu } from '@/components/NodeActionsMenu';
 import { useFocusHighlight } from '@/hooks/useFocusHighlight';
+import { useIsTruncated } from '@/hooks/useIsTruncated';
 import type { DataRoomNode } from '@/lib/db/schema';
 import { formatBytes, formatDate } from '@/lib/format';
 
@@ -20,6 +21,7 @@ interface NodeRowProps {
 
 export function NodeRow({ node, itemCount, shouldFocus, onFocusHandled, onOpen, onRename, onDelete }: NodeRowProps) {
   const { ref: openButtonRef, isHighlighted } = useFocusHighlight<HTMLButtonElement>(shouldFocus, onFocusHandled);
+  const { ref: nameRef, isTruncated } = useIsTruncated<HTMLSpanElement>();
 
   return (
     <div
@@ -35,20 +37,26 @@ export function NodeRow({ node, itemCount, shouldFocus, onFocusHandled, onOpen, 
         className="flex min-w-0 flex-1 items-center gap-3 text-left"
       >
         {node.type === 'folder' ? (
-          <Folder className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <Folder className="size-5 shrink-0 fill-amber-400/25 text-amber-500 dark:text-amber-400" aria-hidden="true" />
         ) : (
-          <FileText className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <FileText className="size-5 shrink-0 fill-red-400/15 text-red-500 dark:text-red-400" aria-hidden="true" />
         )}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="min-w-0 flex-1 truncate text-sm font-medium" aria-hidden="true">
+        {isTruncated ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span ref={nameRef} className="min-w-0 flex-1 truncate text-sm font-medium" aria-hidden="true">
+                {node.name}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" align="start" className="max-w-80 break-words">
               {node.name}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top" align="start" className="max-w-80 break-words">
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <span ref={nameRef} className="min-w-0 flex-1 truncate text-sm font-medium" aria-hidden="true">
             {node.name}
-          </TooltipContent>
-        </Tooltip>
+          </span>
+        )}
         <span className="hidden shrink-0 text-xs text-muted-foreground sm:block" aria-hidden="true">
           {node.type === 'file'
             ? formatBytes(node.size)
