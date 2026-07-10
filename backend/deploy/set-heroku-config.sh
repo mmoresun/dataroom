@@ -22,9 +22,13 @@ fi
 
 # Deliberately excluded:
 #   APP_PORT — must stay unset so app.config.ts falls back to Heroku's own PORT
-#   DATABASE_HOST/PORT/USERNAME/PASSWORD/NAME/TYPE/CA/KEY/CERT — local Postgres only, superseded by DATABASE_URL
+#   DATABASE_HOST/PORT/USERNAME/PASSWORD/NAME/CA/KEY/CERT — local Postgres only, superseded by DATABASE_URL
 #   NODE_ENV — set explicitly to "production" below instead of the .env's "development"
-EXCLUDE_KEYS="APP_PORT|DATABASE_HOST|DATABASE_PORT|DATABASE_USERNAME|DATABASE_PASSWORD|DATABASE_NAME|DATABASE_TYPE|DATABASE_CA|DATABASE_KEY|DATABASE_CERT|WORKER_HOST|NODE_ENV"
+# NOTE: DATABASE_TYPE is NOT excluded, unlike the others — the app itself (database.config.ts)
+# falls back fine without it when DATABASE_URL is set, but the TypeORM CLI's own
+# src/database/data-source.ts reads process.env.DATABASE_TYPE directly with no such fallback,
+# and the release-phase migration command needs it or it fails with "Wrong driver: undefined".
+EXCLUDE_KEYS="APP_PORT|DATABASE_HOST|DATABASE_PORT|DATABASE_USERNAME|DATABASE_PASSWORD|DATABASE_NAME|DATABASE_CA|DATABASE_KEY|DATABASE_CERT|WORKER_HOST|NODE_ENV"
 
 grep -vE "^($EXCLUDE_KEYS)=" "$ENV_FILE" | grep -vE '^#|^$' > "$TMP_FILE"
 echo "NODE_ENV=production" >> "$TMP_FILE"
