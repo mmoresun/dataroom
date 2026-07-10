@@ -1,0 +1,35 @@
+name: Deploy frontend to Heroku
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'backend/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      # heroku-buildpack-static serves whatever's already in `dist/` (per static.json) —
+      # it doesn't run a build step itself, so `dist/` must exist before this deploy step.
+      # ubuntu-latest runners don't ship the Heroku CLI preinstalled anymore either.
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
+
+      - uses: akhileshns/heroku-deploy@v3.13.15
+        with:
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: ${{ secrets.HEROKU_FRONTEND_APP_NAME }}
+          heroku_email: ${{ secrets.HEROKU_EMAIL }}
+          appdir: .
