@@ -1,3 +1,8 @@
+// Baked in at build time by Vite — must be set wherever this app is actually built,
+// not just in CI. Heroku's own buildpack rebuilds this app on every push too, so
+// VITE_API_URL needs to be a Heroku config var on the frontend app as well, or every
+// request silently ends up at this app's own origin ("/undefined/...") instead of the
+// real backend.
 const API_URL = import.meta.env.VITE_API_URL;
 
 /** Shared source of truth for the persisted access token — read here on every
