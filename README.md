@@ -97,6 +97,8 @@ npm run dev           # http://localhost:5173
 
 **Production** uses managed Neon Postgres and is deployed to Heroku (two apps, auto-deployed independently on push — see `backend/CLAUDE.md`'s "Deployment" section) instead of the local Docker Postgres above; same code, different `DATABASE_URL`.
 
+**Gotcha if you ever touch the frontend's Heroku deploy:** `VITE_API_URL` is baked into the JS bundle at *build* time by Vite, not read at runtime. Heroku's own Node.js buildpack re-runs `npm run build` on every push (in addition to the build GitHub Actions already did), so `VITE_API_URL` must be set as a **Heroku config var** on the frontend app too — not just as a GitHub Actions secret — or Heroku's rebuild silently overwrites the correctly-built bundle with one where the API URL is missing, and every request quietly ends up hitting the frontend's own origin (`/undefined/auth/...`) instead of the backend.
+
 ### Design decisions
 
 **Data model: a flat table, not a nested tree.**
@@ -275,6 +277,8 @@ npm run dev           # http://localhost:5173
 | Maildev (перехоплені листи) | http://localhost:1080 |
 
 **Прод** використовує керований Neon Postgres і задеплоєний на Heroku (два застосунки, автодеплой незалежно при пуші — див. розділ "Deployment" у `backend/CLAUDE.md`) замість локального Docker Postgres вище; той самий код, інший `DATABASE_URL`.
+
+**Підводний камінь, якщо колись торкнетесь Heroku-деплою фронтенду:** `VITE_API_URL` "запікається" у JS-бандл під час *збірки* Vite, а не читається під час виконання. Власний Node.js buildpack Heroku повторно запускає `npm run build` при кожному пуші (додатково до збірки, яку вже зробив GitHub Actions), тож `VITE_API_URL` має бути виставлений як **Heroku config var** і на фронтенд-застосунку теж — не лише як секрет GitHub Actions — інакше пересборка Heroku мовчки перезапише коректно зібраний бандл тим, де API URL відсутній, і кожен запит непомітно піде на власний origin фронтенду (`/undefined/auth/...`) замість бекенду.
 
 ### Пояснення рішень
 
