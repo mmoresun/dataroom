@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { FileNode } from '@/lib/db/schema';
-import { getFileBlob } from '@/lib/store/repository';
+import { getDownloadUrl, RepositoryError } from '@/lib/store/repository';
 import { holdViewLock } from '@/lib/store/viewLock';
 
 interface PdfViewerDialogProps {
@@ -13,7 +13,7 @@ export function PdfViewerDialog({ file, onOpenChange }: PdfViewerDialogProps) {
   return (
     <Dialog open={file !== null} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[85vh] w-[95vw] flex-col sm:max-w-4xl">
-        {/* Keyed by file id so the blob is (re)loaded fresh for each file, and the previous object URL is revoked. */}
+        {/* Keyed by file id so the download URL is (re)fetched fresh for each file. */}
         {file && <PdfViewerBody key={file.id} file={file} />}
       </DialogContent>
     </Dialog>
@@ -26,21 +26,17 @@ function PdfViewerBody({ file }: { file: FileNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    let objectUrl: string | null = null;
 
-    void getFileBlob(file.id).then((blob) => {
-      if (cancelled) return;
-      if (!blob) {
-        setError('This file could not be loaded.');
-        return;
-      }
-      objectUrl = URL.createObjectURL(blob);
-      setUrl(objectUrl);
-    });
+    getDownloadUrl(file.id)
+      .then((downloadUrl) => {
+        if (!cancelled) setUrl(downloadUrl);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof RepositoryError ? err.message : 'This file could not be loaded.');
+      });
 
     return () => {
       cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [file.id]);
 

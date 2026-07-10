@@ -48,7 +48,7 @@ export function useDataRoom(roomId: DataRoomId, folderId: NodeId = roomId) {
       setNotFound(false);
 
       const [nextChildren, nextBreadcrumb] = await Promise.all([
-        repo.listChildren(folderId),
+        repo.listChildren(roomId, folderId),
         repo.getBreadcrumb(folderId, roomId),
       ]);
       setChildren(nextChildren);
@@ -92,8 +92,8 @@ export function useDataRoom(roomId: DataRoomId, folderId: NodeId = roomId) {
     error,
     roomNotFound,
     notFound,
-    createFolder: (name: string) => runMutation(() => repo.createFolder(name, folderId)),
-    uploadFile: (file: File) => runMutation(() => repo.uploadFile(file, folderId)),
+    createFolder: (name: string) => runMutation(() => repo.createFolder(name, folderId, roomId)),
+    uploadFile: (file: File) => runMutation(() => repo.uploadFile(file, folderId, roomId)),
     renameNode: (id: NodeId, newName: string) => runMutation(() => repo.renameNode(id, newName)),
     deleteNode: (id: NodeId) => runMutation(() => repo.deleteNode(id)),
   };

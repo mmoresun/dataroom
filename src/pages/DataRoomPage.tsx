@@ -2,6 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { UserMenu } from '@/components/UserMenu';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Toolbar } from '@/components/Toolbar';
 import { NodeList } from '@/components/NodeList';
@@ -114,7 +115,10 @@ export function DataRoomPage() {
     <div className="mx-auto flex min-h-screen max-w-4xl flex-col p-4 sm:p-6">
       <header className="mb-6 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">{room.roomName ?? 'Dataroom'}</h1>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <UserMenu />
+        </div>
       </header>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -165,6 +169,7 @@ export function DataRoomPage() {
         onConfirm={handleDelete}
         title={(node) => `Delete ${node.type === 'folder' ? 'folder' : 'file'}?`}
         isContainer={(node) => node.type === 'folder'}
+        getDataRoomId={() => roomId!}
       />
       <PdfViewerDialog file={viewFile} onOpenChange={(open) => !open && setViewFile(null)} />
     </div>

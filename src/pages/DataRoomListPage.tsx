@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { FolderPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { UserMenu } from '@/components/UserMenu';
 import { Button } from '@/components/ui/button';
 import { DataRoomList } from '@/components/DataRoomList';
 import { CreateDialog } from '@/components/CreateDialog';
@@ -47,7 +48,10 @@ export function DataRoomListPage() {
     <div className="mx-auto flex min-h-screen max-w-4xl flex-col p-4 sm:p-6">
       <header className="mb-6 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Datarooms</h1>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <UserMenu />
+        </div>
       </header>
 
       <div className="mb-4 flex justify-end">
@@ -90,6 +94,7 @@ export function DataRoomListPage() {
         onConfirm={handleDelete}
         title={() => 'Delete dataroom?'}
         isContainer={() => true}
+        getDataRoomId={(room) => room.id}
       />
     </div>
   );

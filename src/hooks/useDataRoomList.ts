@@ -14,7 +14,7 @@ export function useDataRoomList() {
     try {
       const next = await repo.listDataRooms();
       setRooms(next);
-      const counts = await Promise.all(next.map((r) => repo.countChildren(r.id)));
+      const counts = await Promise.all(next.map((r) => repo.countDataRoomChildren(r.id)));
       setItemCounts(new Map(next.map((r, i) => [r.id, counts[i]])));
       setError(null);
     } catch (err) {

@@ -20,6 +20,9 @@ interface DeleteConfirmDialogProps<T extends { id: string; name: string }> {
   /** True if `target` can itself contain files/folders (a folder or a dataroom) — its nested
    * item counts are fetched and shown in the warning. False for a leaf item (a file). */
   isContainer: (target: T) => boolean;
+  /** Id of the dataroom `target` lives in — itself, if `target` is a dataroom. Only read
+   * when `isContainer(target)` is true. */
+  getDataRoomId: (target: T) => string;
 }
 
 /** Generic delete-confirmation dialog — works for folders, files, and datarooms alike. */
@@ -29,13 +32,21 @@ export function DeleteConfirmDialog<T extends { id: string; name: string }>({
   onConfirm,
   title,
   isContainer,
+  getDataRoomId,
 }: DeleteConfirmDialogProps<T>) {
   return (
     <AlertDialog open={target !== null} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         {/* Keyed by target id so child-count state resets fresh whenever a different target is picked. */}
         {target && (
-          <DeleteConfirmBody key={target.id} target={target} onConfirm={onConfirm} title={title} isContainer={isContainer} />
+          <DeleteConfirmBody
+            key={target.id}
+            target={target}
+            onConfirm={onConfirm}
+            title={title}
+            isContainer={isContainer}
+            getDataRoomId={getDataRoomId}
+          />
         )}
       </AlertDialogContent>
     </AlertDialog>
@@ -47,11 +58,13 @@ function DeleteConfirmBody<T extends { id: string; name: string }>({
   onConfirm,
   title,
   isContainer,
+  getDataRoomId,
 }: {
   target: T;
   onConfirm: (id: string) => void;
   title: (target: T) => string;
   isContainer: (target: T) => boolean;
+  getDataRoomId: (target: T) => string;
 }) {
   const [counts, setCounts] = useState<{ fileCount: number; folderCount: number } | null>(null);
   const container = isContainer(target);
@@ -59,7 +72,7 @@ function DeleteConfirmBody<T extends { id: string; name: string }>({
   useEffect(() => {
     if (!container) return;
     let cancelled = false;
-    void listChildren(target.id).then((children) => {
+    void listChildren(getDataRoomId(target), target.id).then((children) => {
       if (cancelled) return;
       setCounts({
         fileCount: children.filter((c) => c.type === 'file').length,
@@ -69,6 +82,7 @@ function DeleteConfirmBody<T extends { id: string; name: string }>({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- remounted per target.id (keyed by the parent)
   }, [target.id, container]);
 
   return (
