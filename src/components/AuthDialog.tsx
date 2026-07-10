@@ -128,13 +128,25 @@ function SignUpForm() {
     setIsSubmitting(true);
     try {
       await apiRegister(email, password, firstName, lastName);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Failed to create account.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
       // Registration doesn't require email confirmation before the first login,
       // so sign the new user straight in rather than bouncing them back to sign-in.
       await auth.loginWithEmail(email, password);
       navigate('/', { replace: true });
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to create account.');
-    } finally {
+      // The account was created successfully above — only the automatic sign-in
+      // failed, so don't tell the user account creation itself failed.
+      toast.error(
+        err instanceof ApiError
+          ? `Account created, but sign-in failed: ${err.message}`
+          : 'Account created — please sign in.',
+      );
       setIsSubmitting(false);
     }
   };

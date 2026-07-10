@@ -1,6 +1,7 @@
 import {
   HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
   UnprocessableEntityException,
@@ -31,6 +32,8 @@ import { User } from '../users/domain/user';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly usersService: UsersService,
@@ -219,12 +222,22 @@ export class AuthService {
       },
     );
 
-    await this.mailService.userSignUp({
-      to: dto.email,
-      data: {
-        hash,
-      },
-    });
+    // Best-effort: the frontend signs new users in immediately without requiring email
+    // confirmation (there's no UI flow that consumes this link), so a broken/unconfigured
+    // mail transport (e.g. no SMTP server in production) shouldn't fail registration itself
+    // — the user account is already created above regardless of whether this succeeds.
+    try {
+      await this.mailService.userSignUp({
+        to: dto.email,
+        data: {
+          hash,
+        },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Failed to send sign-up confirmation email to ${dto.email}: ${err instanceof Error ? err.message : err}`,
+      );
+    }
   }
 
   async confirmEmail(hash: string): Promise<void> {
