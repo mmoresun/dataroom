@@ -10,30 +10,92 @@ A virtual data room MVP — create multiple independent Datarooms, each with its
 
 ### Live demo
 
-Run it locally with the setup instructions below — no backend or account needed.
+Run it locally with the setup instructions below.
 
 ### Tech stack
 
 - **React 19 + TypeScript + Vite** — required by the assignment
 - **Tailwind CSS v4** + **shadcn/ui** — the company's stated stack; shadcn isn't a component *library* you install, it's a code generator: `npx shadcn add button` copies the component's source straight into `src/components/ui/`, styled with Tailwind and built on Radix UI primitives for accessibility (focus traps, keyboard nav, ARIA). You own and can edit that code.
 - **react-router-dom** — navigation lives in the URL (`/room/:roomId/folder/:id`), so the back button, refresh, and deep links all work correctly
-- **idb** — a small Promise wrapper around the native IndexedDB API
 - **sonner** — toast notifications
 - **lucide-react** — icons
+- **Backend: NestJS + TypeORM/PostgreSQL** (in `backend/`) — real multi-user persistence, JWT + Google auth, S3 presigned uploads. See `backend/CLAUDE.md` for its own architecture notes. The frontend originally ran on IndexedDB alone (no backend); that mock layer has since been fully replaced — see "What's not implemented" below for what's still historical in this doc.
 
-### Setup
+### Local Development Setup
+
+Two independent apps: this repo's root (frontend, Vite) and `backend/` (NestJS API). Both need to be running for the app to actually work end-to-end (folders/files, auth, PDF upload/view) — running only the frontend gets you a login screen and nothing past it.
+
+**Prerequisites:** Node 22+ (developed against Node 24), Docker + Docker Compose (for local Postgres/Adminer/Maildev), an AWS S3 bucket (for PDF upload/download — see note below).
+
+#### 1. Backend: local services
+
+```bash
+cd backend
+docker compose up -d postgres adminer maildev   # NOT `api` — we run Nest directly on the host below
+```
+
+This starts Postgres, [Adminer](http://localhost:8082) (a DB admin UI), and [Maildev](http://localhost:1080) (catches outgoing emails locally instead of sending them).
+
+#### 2. Backend: environment
+
+Create `backend/.env`. The vendored `env-example-relational` is the upstream boilerplate's own template — this project uses different values in a few places (documented in `backend/CLAUDE.md`), most importantly:
+
+```env
+DATABASE_HOST=localhost
+DATABASE_PORT=5433        # not 5432 — avoids clashing with a native Postgres install; matches docker-compose.yaml
+DATABASE_USERNAME=root
+DATABASE_PASSWORD=secret
+DATABASE_NAME=api
+FILE_DRIVER=s3-presigned
+ACCESS_KEY_ID=...         # your AWS credentials
+SECRET_ACCESS_KEY=...
+AWS_S3_REGION=...
+AWS_DEFAULT_S3_BUCKET=...
+AUTH_JWT_SECRET=...        # any random string for local dev
+AUTH_REFRESH_SECRET=...
+AUTH_FORGOT_SECRET=...
+AUTH_CONFIRM_EMAIL_SECRET=...
+GOOGLE_CLIENT_ID=...       # optional — only needed to test Google sign-in
+GOOGLE_CLIENT_SECRET=...
+FRONTEND_DOMAIN=http://localhost:5173
+BACKEND_DOMAIN=http://localhost:3001
+```
+
+**Note on file storage:** folder/file upload in this app always talks to S3 directly via presigned URLs (`src/nodes/node-storage.service.ts`) — this isn't gated by `FILE_DRIVER` (that setting only affects the vendored boilerplate's own unrelated user-avatar upload feature). To exercise upload/view locally you need a real S3 bucket with CORS allowing `http://localhost:5173` for `GET`/`PUT`/`HEAD` (see `backend/CLAUDE.md`'s "Uploads/downloads" section for why the architecture is shaped this way). Without it, everything except PDF upload/view still works.
+
+**Note on Google sign-in:** optional — email/password auth works out of the box. To test Google sign-in locally, create an OAuth client in Google Cloud Console with `http://localhost:5173` as an authorized JavaScript origin.
+
+#### 3. Backend: install, migrate, seed, run
 
 ```bash
 npm install
-npm run dev       # start the dev server (http://localhost:5173)
-npm run build     # type-check + production build
-npm run preview   # preview the production build locally
-npm run lint      # eslint
+npm run migration:run
+npm run seed:run:relational   # creates admin@example.com / john.doe@example.com, password "secret"
+npm run start:dev             # http://localhost:3001, API under /api/v1
 ```
 
-Requires Node 20+ (Node 22+ recommended — one dev dependency prints an engine warning on Node 20 but everything still runs correctly).
+#### 4. Frontend: environment, install, run
 
-No environment variables, no backend, no database server. All state lives in the browser's IndexedDB.
+```bash
+cd ..                # repo root
+cp .env.example .env
+npm install
+npm run dev           # http://localhost:5173
+```
+
+`.env`'s defaults already point at `http://localhost:3001` — only change `VITE_API_URL` if the backend runs elsewhere.
+
+#### What's running where
+
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:3001/api/v1 |
+| Swagger API docs | http://localhost:3001/docs |
+| Adminer (Postgres UI) | http://localhost:8082 |
+| Maildev (caught emails) | http://localhost:1080 |
+
+**Production** uses managed Neon Postgres and is deployed to Heroku (two apps, auto-deployed independently on push — see `backend/CLAUDE.md`'s "Deployment" section) instead of the local Docker Postgres above; same code, different `DATABASE_URL`.
 
 ### Design decisions
 
@@ -117,8 +179,10 @@ src/
 
 ### What's not implemented (out of scope for this pass)
 
-- **No backend / multi-user sync.** Everything lives in one browser's IndexedDB — it's a single-user mock, not shared storage. Deploying the frontend (e.g. to Vercel) would make the *app* public, not the data: each visitor gets their own empty, local data room.
-- **No authentication.**
+> The two bullets below described the project's original, frontend-only take-home phase, where everything lived in one browser's IndexedDB with no server. That's since been fully replaced by the real backend and auth described in "Local Development Setup" above — kept here for history, not because they're still true.
+> - ~~No backend / multi-user sync.~~ Now a real NestJS + PostgreSQL backend with per-user data isolation, deployed independently of the frontend.
+> - ~~No authentication.~~ Now email/password + Google sign-in (JWT-based).
+
 - **No search or content filtering.**
 - **No move / drag-and-drop between folders** (only drag-and-drop *upload* is supported).
 - **No automated test suite committed.** Every feature in this project was verified end-to-end against the running app with Playwright during development (creating the scenario, driving the UI, checking the resulting DOM/IndexedDB state, screenshotting for visual review) rather than by writing and committing test files — appropriate for the scope of a take-home, but a real test suite (Vitest + Testing Library for the repository/hooks, Playwright for a few end-to-end flows) would be a natural next step.
@@ -132,23 +196,85 @@ src/
 - **React 19 + TypeScript + Vite** — вимога завдання
 - **Tailwind CSS v4** + **shadcn/ui** — заявлений стек компанії; shadcn — це не бібліотека компонентів, яку встановлюють, а генератор коду: `npx shadcn add button` копіює вихідний код компонента прямо в `src/components/ui/`, стилізований Tailwind і побудований на примітивах Radix UI (фокус-пастки, навігація з клавіатури, ARIA). Цей код належить вам, і його можна редагувати.
 - **react-router-dom** — навігація живе в URL (`/room/:roomId/folder/:id`), тож кнопка "назад", оновлення сторінки й прямі посилання працюють коректно
-- **idb** — невелика обгортка над нативним IndexedDB API на Promise
 - **sonner** — тости-сповіщення
 - **lucide-react** — іконки
+- **Бекенд: NestJS + TypeORM/PostgreSQL** (у `backend/`) — справжнє багатокористувацьке збереження даних, JWT + Google-автентифікація, завантаження файлів у S3 через presigned URL. Архітектурні нотатки — у `backend/CLAUDE.md`. Спочатку фронтенд працював лише на IndexedDB (без бекенду); цей мок-шар відтоді повністю замінено — див. "Що не реалізовано" нижче про те, що з цього документа вже застаріло.
 
-### Встановлення та запуск
+### Локальне розгортання
+
+Два незалежні застосунки: корінь цього репо (фронтенд, Vite) і `backend/` (NestJS API). Для повноцінної роботи (папки/файли, автентифікація, завантаження/перегляд PDF) потрібні обидва — лише фронтенд дасть екран входу і нічого далі.
+
+**Передумови:** Node 22+ (розроблено на Node 24), Docker + Docker Compose (для локальних Postgres/Adminer/Maildev), бакет AWS S3 (для завантаження/перегляду PDF — див. примітку нижче).
+
+#### 1. Бекенд: локальні сервіси
+
+```bash
+cd backend
+docker compose up -d postgres adminer maildev   # НЕ `api` — Nest запускаємо напряму на хості нижче
+```
+
+Піднімає Postgres, [Adminer](http://localhost:8082) (UI для БД) і [Maildev](http://localhost:1080) (перехоплює вихідні листи локально, замість реальної відправки).
+
+#### 2. Бекенд: середовище
+
+Створіть `backend/.env`. Вендорний `env-example-relational` — це шаблон самого апстрім-бойлерплейта; цей проєкт використовує інші значення в кількох місцях (задокументовано в `backend/CLAUDE.md`), найважливіше:
+
+```env
+DATABASE_HOST=localhost
+DATABASE_PORT=5433        # не 5432 — щоб не конфліктувати з нативним Postgres; відповідає docker-compose.yaml
+DATABASE_USERNAME=root
+DATABASE_PASSWORD=secret
+DATABASE_NAME=api
+FILE_DRIVER=s3-presigned
+ACCESS_KEY_ID=...         # ваші AWS-креденшали
+SECRET_ACCESS_KEY=...
+AWS_S3_REGION=...
+AWS_DEFAULT_S3_BUCKET=...
+AUTH_JWT_SECRET=...        # будь-який випадковий рядок для локальної розробки
+AUTH_REFRESH_SECRET=...
+AUTH_FORGOT_SECRET=...
+AUTH_CONFIRM_EMAIL_SECRET=...
+GOOGLE_CLIENT_ID=...       # опційно — лише для тестування входу через Google
+GOOGLE_CLIENT_SECRET=...
+FRONTEND_DOMAIN=http://localhost:5173
+BACKEND_DOMAIN=http://localhost:3001
+```
+
+**Про сховище файлів:** завантаження файлів у цьому застосунку завжди йде напряму в S3 через presigned URL (`src/nodes/node-storage.service.ts`) — це не залежить від `FILE_DRIVER` (це налаштування впливає лише на окрему, непов'язану функцію завантаження аватарів користувачів із вендорного бойлерплейту). Щоб перевірити завантаження/перегляд локально, потрібен реальний S3-бакет з CORS, що дозволяє `http://localhost:5173` для `GET`/`PUT`/`HEAD` (див. розділ "Uploads/downloads" у `backend/CLAUDE.md` про те, чому архітектура саме така). Без цього все, крім завантаження/перегляду PDF, працює.
+
+**Про вхід через Google:** опційно — автентифікація email/пароль працює одразу. Щоб перевірити вхід через Google локально, створіть OAuth-клієнт у Google Cloud Console з `http://localhost:5173` як authorized JavaScript origin.
+
+#### 3. Бекенд: встановлення, міграції, сіди, запуск
 
 ```bash
 npm install
-npm run dev       # запустити дев-сервер (http://localhost:5173)
-npm run build     # перевірка типів + продакшн-збірка
-npm run preview   # локальний перегляд продакшн-збірки
-npm run lint      # eslint
+npm run migration:run
+npm run seed:run:relational   # створює admin@example.com / john.doe@example.com, пароль "secret"
+npm run start:dev             # http://localhost:3001, API під /api/v1
 ```
 
-Потрібен Node 20+ (рекомендується Node 22+ — одна з dev-залежностей виводить попередження про версію на Node 20, але все одно коректно працює).
+#### 4. Фронтенд: середовище, встановлення, запуск
 
-Змінні середовища, бекенд чи сервер бази даних не потрібні. Весь стан зберігається в IndexedDB браузера.
+```bash
+cd ..                # корінь репо
+cp .env.example .env
+npm install
+npm run dev           # http://localhost:5173
+```
+
+Значення за замовчуванням у `.env` вже вказують на `http://localhost:3001` — міняйте `VITE_API_URL` лише якщо бекенд працює деінде.
+
+#### Що де працює
+
+| Сервіс | URL |
+|---|---|
+| Фронтенд | http://localhost:5173 |
+| Backend API | http://localhost:3001/api/v1 |
+| Swagger API docs | http://localhost:3001/docs |
+| Adminer (UI для Postgres) | http://localhost:8082 |
+| Maildev (перехоплені листи) | http://localhost:1080 |
+
+**Прод** використовує керований Neon Postgres і задеплоєний на Heroku (два застосунки, автодеплой незалежно при пуші — див. розділ "Deployment" у `backend/CLAUDE.md`) замість локального Docker Postgres вище; той самий код, інший `DATABASE_URL`.
 
 ### Пояснення рішень
 
@@ -232,8 +358,10 @@ src/
 
 ### Що не реалізовано (поза межами цього етапу)
 
-- **Немає бекенду / синхронізації між користувачами.** Все живе в IndexedDB одного браузера — це мок для одного користувача, а не спільне сховище. Розгортання фронтенду (наприклад, на Vercel) зробить публічним *застосунок*, а не дані: кожен відвідувач отримає свою власну порожню локальну дата-руму.
-- **Немає автентифікації.**
+> Два пункти нижче описували початковий, чисто фронтендовий етап проєкту (тестове завдання), де все жило в IndexedDB одного браузера без сервера. Це відтоді повністю замінено справжнім бекендом і автентифікацією, описаними в "Локальне розгортання" вище — залишено тут для історії, а не тому що досі актуально.
+> - ~~Немає бекенду / синхронізації між користувачами.~~ Тепер справжній бекенд на NestJS + PostgreSQL з ізоляцією даних по користувачах, деплоїться незалежно від фронтенду.
+> - ~~Немає автентифікації.~~ Тепер email/пароль + вхід через Google (на основі JWT).
+
 - **Немає пошуку чи фільтрації за вмістом.**
 - **Немає переміщення / drag-and-drop між папками** (підтримується лише drag-and-drop для *завантаження*).
 - **Немає доданого автоматизованого набору тестів.** Кожна функція в цьому проєкті перевірялася наскрізно на реальному застосунку за допомогою Playwright під час розробки (відтворення сценарію, керування UI, перевірка стану DOM/IndexedDB, скриншоти для візуальної перевірки), а не написанням і комітом тестових файлів — це доречно для обсягу тестового завдання, але справжній набір тестів (Vitest + Testing Library для репозиторію/хуків, Playwright для кількох наскрізних сценаріїв) був би логічним наступним кроком.
