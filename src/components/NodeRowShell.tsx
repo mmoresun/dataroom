@@ -3,10 +3,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { NodeActionsMenu } from '@/components/NodeActionsMenu';
 import { useFocusHighlight } from '@/hooks/useFocusHighlight';
 import { useIsTruncated } from '@/hooks/useIsTruncated';
-import type { DataRoomNode } from '@/lib/db/schema';
 import { formatDate } from '@/lib/format';
 
-interface NodeRowShellProps<T extends DataRoomNode> {
+interface NodeRowShellProps<T extends { name: string; createdAt: number }> {
   node: T;
   icon: ReactNode;
   /** Right-aligned-ish meta text shown before the date column, e.g. "12 items" or "1.2 MB". */
@@ -20,8 +19,8 @@ interface NodeRowShellProps<T extends DataRoomNode> {
   onDelete: (node: T) => void;
 }
 
-/** Shared row chrome (container, icon slot, truncated-name tooltip, meta/date columns, actions menu) used by FolderRow and FileRow. */
-export function NodeRowShell<T extends DataRoomNode>({
+/** Shared row chrome (container, icon slot, truncated-name tooltip, meta/date columns, actions menu) used by FolderRow, FileRow, and DataRoomRow. */
+export function NodeRowShell<T extends { name: string; createdAt: number }>({
   node,
   icon,
   metaText,

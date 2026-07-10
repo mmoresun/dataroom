@@ -5,7 +5,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Toolbar } from '@/components/Toolbar';
 import { NodeList } from '@/components/NodeList';
-import { CreateFolderDialog } from '@/components/CreateFolderDialog';
+import { CreateDialog } from '@/components/CreateDialog';
 import { RenameDialog } from '@/components/RenameDialog';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { PdfViewerDialog } from '@/components/PdfViewerDialog';
@@ -144,20 +144,27 @@ export function DataRoomPage() {
         onFilesDropped={(files) => void handleUploadFiles(files)}
       />
 
-      <CreateFolderDialog
+      <CreateDialog
         open={isCreateFolderOpen}
         onOpenChange={setCreateFolderOpen}
         onCreate={handleCreateFolder}
+        title="New folder"
+        label="Folder name"
+        defaultName="New Folder"
+        errorFallback="Failed to create folder."
       />
       <RenameDialog
-        node={renameTarget}
+        target={renameTarget}
         onOpenChange={(open) => !open && setRenameTarget(null)}
         onRename={handleRename}
+        title={(node) => `Rename ${node.type === 'folder' ? 'folder' : 'file'}`}
       />
       <DeleteConfirmDialog
-        node={deleteTarget}
+        target={deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         onConfirm={handleDelete}
+        title={(node) => `Delete ${node.type === 'folder' ? 'folder' : 'file'}?`}
+        isContainer={(node) => node.type === 'folder'}
       />
       <PdfViewerDialog file={viewFile} onOpenChange={(open) => !open && setViewFile(null)} />
     </div>

@@ -5,9 +5,9 @@ import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { DataRoomList } from '@/components/DataRoomList';
-import { CreateDataRoomDialog } from '@/components/CreateDataRoomDialog';
-import { RenameDataRoomDialog } from '@/components/RenameDataRoomDialog';
-import { DeleteDataRoomConfirmDialog } from '@/components/DeleteDataRoomConfirmDialog';
+import { CreateDialog } from '@/components/CreateDialog';
+import { RenameDialog } from '@/components/RenameDialog';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { useDataRoomList } from '@/hooks/useDataRoomList';
 import type { DataRoom } from '@/lib/db/schema';
 import { RepositoryError } from '@/lib/store/repository';
@@ -69,16 +69,27 @@ export function DataRoomListPage() {
         onDelete={setDeleteTarget}
       />
 
-      <CreateDataRoomDialog open={isCreateOpen} onOpenChange={setCreateOpen} onCreate={handleCreate} />
-      <RenameDataRoomDialog
-        room={renameTarget}
+      <CreateDialog
+        open={isCreateOpen}
+        onOpenChange={setCreateOpen}
+        onCreate={handleCreate}
+        title="New dataroom"
+        label="Dataroom name"
+        defaultName="New Dataroom"
+        errorFallback="Failed to create dataroom."
+      />
+      <RenameDialog
+        target={renameTarget}
         onOpenChange={(open) => !open && setRenameTarget(null)}
         onRename={handleRename}
+        title={() => 'Rename dataroom'}
       />
-      <DeleteDataRoomConfirmDialog
-        room={deleteTarget}
+      <DeleteConfirmDialog
+        target={deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         onConfirm={handleDelete}
+        title={() => 'Delete dataroom?'}
+        isContainer={() => true}
       />
     </div>
   );

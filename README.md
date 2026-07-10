@@ -84,16 +84,15 @@ src/
     useTheme.ts        Light/dark theme state + persistence
   components/
     ui/                     Generated shadcn/ui primitives (button, dialog, dropdown-menu, ...)
-    NodeRowShell.tsx        Shared row chrome (icon slot, truncated-name tooltip, actions menu) for folder/file rows
-    FolderRow.tsx / FileRow.tsx   Thin wrappers over NodeRowShell for each node type
+    NodeRowShell.tsx        Shared row chrome (icon slot, truncated-name tooltip, actions menu) — generic over anything with { name, createdAt }, so FolderRow/FileRow/DataRoomRow all reuse it
+    FolderRow.tsx / FileRow.tsx / DataRoomRow.tsx   Thin wrappers over NodeRowShell, one per row type
     NodeList.tsx            Folder-contents area: loading skeleton, empty state, the row list
     UploadDropzone.tsx      Drag-and-drop-to-upload wrapper
-    DataRoomRow.tsx         A single Dataroom row in the list (name, item count, date, actions menu)
     DataRoomList.tsx        Dataroom-list area: loading skeleton, empty state, the row list
     Breadcrumbs.tsx         "All Datarooms > Room name > nested folders..."
-    CreateFolderDialog.tsx / CreateDataRoomDialog.tsx
-    RenameDialog.tsx / RenameDataRoomDialog.tsx
-    DeleteConfirmDialog.tsx / DeleteDataRoomConfirmDialog.tsx
+    CreateDialog.tsx        Generic "create X" dialog (title/label/default name as props) — used for both folders and datarooms
+    RenameDialog.tsx        Generic rename dialog — works for anything with { id, name } (folders, files, datarooms)
+    DeleteConfirmDialog.tsx Generic delete-confirmation dialog — an `isContainer` prop decides whether to fetch/report nested item counts
     PdfViewerDialog.tsx
     ThemeToggle.tsx
   pages/
@@ -200,16 +199,15 @@ src/
     useTheme.ts         Стан світлої/темної теми + збереження
   components/
     ui/                     Згенеровані примітиви shadcn/ui (button, dialog, dropdown-menu, ...)
-    NodeRowShell.tsx        Спільна "обгортка" рядка (іконка, tooltip з обрізаним іменем, меню дій) для папок/файлів
-    FolderRow.tsx / FileRow.tsx   Тонкі обгортки над NodeRowShell для кожного типу вузла
+    NodeRowShell.tsx        Спільна "обгортка" рядка (іконка, tooltip з обрізаним іменем, меню дій) — generic над будь-чим із { name, createdAt }, тож FolderRow/FileRow/DataRoomRow всі перевикористовують її
+    FolderRow.tsx / FileRow.tsx / DataRoomRow.tsx   Тонкі обгортки над NodeRowShell, по одній на тип рядка
     NodeList.tsx            Область вмісту папки: skeleton завантаження, порожній стан, список рядків
     UploadDropzone.tsx      Обгортка drag-and-drop для завантаження
-    DataRoomRow.tsx         Один рядок дата-руму в списку (ім'я, кількість елементів, дата, меню дій)
     DataRoomList.tsx        Область списку дата-рум: skeleton завантаження, порожній стан, список рядків
     Breadcrumbs.tsx         "All Datarooms > назва кімнати > вкладені папки..."
-    CreateFolderDialog.tsx / CreateDataRoomDialog.tsx
-    RenameDialog.tsx / RenameDataRoomDialog.tsx
-    DeleteConfirmDialog.tsx / DeleteDataRoomConfirmDialog.tsx
+    CreateDialog.tsx        Generic діалог "створити X" (title/label/дефолтне ім'я як пропси) — використовується і для папок, і для дата-рум
+    RenameDialog.tsx        Generic діалог перейменування — працює для будь-чого з { id, name } (папки, файли, дата-руми)
+    DeleteConfirmDialog.tsx Generic діалог підтвердження видалення — проп `isContainer` вирішує, чи завантажувати й показувати кількість вкладених елементів
     PdfViewerDialog.tsx
     ThemeToggle.tsx
   pages/

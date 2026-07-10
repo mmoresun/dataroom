@@ -10,36 +10,39 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { DataRoomNode } from '@/lib/db/schema';
 import { DuplicateNameError, RepositoryError } from '@/lib/store/repository';
 
-interface RenameDialogProps {
-  node: DataRoomNode | null;
+interface RenameDialogProps<T extends { id: string; name: string }> {
+  target: T | null;
   onOpenChange: (open: boolean) => void;
   onRename: (id: string, name: string) => Promise<unknown>;
+  title: (target: T) => string;
 }
 
-export function RenameDialog({ node, onOpenChange, onRename }: RenameDialogProps) {
+/** Generic rename dialog — works for folders, files, and datarooms alike (anything with an id + name). */
+export function RenameDialog<T extends { id: string; name: string }>({ target, onOpenChange, onRename, title }: RenameDialogProps<T>) {
   return (
-    <Dialog open={node !== null} onOpenChange={onOpenChange}>
+    <Dialog open={target !== null} onOpenChange={onOpenChange}>
       <DialogContent>
-        {/* Keyed by node id so the form's local state resets whenever a different node is targeted. */}
-        {node && <RenameForm key={node.id} node={node} onOpenChange={onOpenChange} onRename={onRename} />}
+        {/* Keyed by target id so the form's local state resets whenever a different target is picked. */}
+        {target && <RenameForm key={target.id} target={target} onOpenChange={onOpenChange} onRename={onRename} title={title} />}
       </DialogContent>
     </Dialog>
   );
 }
 
-function RenameForm({
-  node,
+function RenameForm<T extends { id: string; name: string }>({
+  target,
   onOpenChange,
   onRename,
+  title,
 }: {
-  node: DataRoomNode;
+  target: T;
   onOpenChange: (open: boolean) => void;
   onRename: (id: string, name: string) => Promise<unknown>;
+  title: (target: T) => string;
 }) {
-  const [name, setName] = useState(node.name);
+  const [name, setName] = useState(target.name);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -47,14 +50,14 @@ function RenameForm({
     if (!name.trim() || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await onRename(node.id, name);
+      await onRename(target.id, name);
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof RepositoryError ? err.message : 'Failed to rename.');
       if (err instanceof DuplicateNameError) {
         // Keep the dialog open so the user can try a different name, restoring the
         // original (not what they just typed, which is the name that collided).
-        setName(node.name);
+        setName(target.name);
       } else {
         onOpenChange(false);
       }
@@ -66,7 +69,7 @@ function RenameForm({
   return (
     <form onSubmit={handleSubmit}>
       <DialogHeader>
-        <DialogTitle>Rename {node.type === 'folder' ? 'folder' : 'file'}</DialogTitle>
+        <DialogTitle>{title(target)}</DialogTitle>
       </DialogHeader>
       <div className="py-4">
         <Label htmlFor="rename-input" className="sr-only">

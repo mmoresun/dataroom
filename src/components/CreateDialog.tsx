@@ -12,14 +12,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RepositoryError } from '@/lib/store/repository';
 
-interface CreateDataRoomDialogProps {
+interface CreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreate: (name: string) => Promise<unknown>;
+  title: string;
+  label: string;
+  defaultName: string;
+  errorFallback: string;
 }
 
-export function CreateDataRoomDialog({ open, onOpenChange, onCreate }: CreateDataRoomDialogProps) {
-  const [name, setName] = useState('New Dataroom');
+/** Generic "create X" dialog — a name field pre-filled with a default, and a Create button. Used for both folders and datarooms. */
+export function CreateDialog({ open, onOpenChange, onCreate, title, label, defaultName, errorFallback }: CreateDialogProps) {
+  const [name, setName] = useState(defaultName);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -29,9 +34,9 @@ export function CreateDataRoomDialog({ open, onOpenChange, onCreate }: CreateDat
     try {
       await onCreate(name);
       onOpenChange(false);
-      setName('New Dataroom');
+      setName(defaultName);
     } catch (err) {
-      toast.error(err instanceof RepositoryError ? err.message : 'Failed to create dataroom.');
+      toast.error(err instanceof RepositoryError ? err.message : errorFallback);
       onOpenChange(false);
     } finally {
       setIsSubmitting(false);
@@ -43,14 +48,14 @@ export function CreateDataRoomDialog({ open, onOpenChange, onCreate }: CreateDat
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>New dataroom</DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <Label htmlFor="dataroom-name" className="sr-only">
-              Dataroom name
+            <Label htmlFor="create-name-input" className="sr-only">
+              {label}
             </Label>
             <Input
-              id="dataroom-name"
+              id="create-name-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus
