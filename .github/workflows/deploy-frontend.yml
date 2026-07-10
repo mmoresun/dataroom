@@ -29,12 +29,14 @@ jobs:
         run: |
           git config user.email "ci@github-actions.local"
           git config user.name "GitHub Actions"
-          git add -f dist static.json
+          git add -f dist
           git commit -m "Build output for Heroku deploy"
 
-      # heroku-buildpack-static serves whatever's in `dist/` (per static.json) — it
-      # doesn't run a build step itself, so dist/ must already exist (built above).
-      # ubuntu-latest runners don't ship the Heroku CLI preinstalled anymore either.
+      # Heroku's Node.js buildpack re-runs `npm run build` itself on push (harmless,
+      # just redundant) then starts `server.js` (a tiny Express static server + SPA
+      # fallback — heroku-buildpack-static is deprecated and doesn't support the
+      # heroku-24 stack, so this replaces it). ubuntu-latest runners don't ship the
+      # Heroku CLI preinstalled anymore either.
       - name: Install Heroku CLI
         run: curl https://cli-assets.heroku.com/install.sh | sh
 
