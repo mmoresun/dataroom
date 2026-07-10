@@ -21,8 +21,19 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
-      # heroku-buildpack-static serves whatever's already in `dist/` (per static.json) —
-      # it doesn't run a build step itself, so `dist/` must exist before this deploy step.
+      # heroku-deploy pushes the actual git tree (HEAD), not raw files off disk — but
+      # dist/ is gitignored and was just built fresh, so it isn't part of any commit yet.
+      # Force-add and commit it locally (this commit is only ever pushed to Heroku's git
+      # remote below, never to origin/GitHub) so the deploy actually includes the build.
+      - name: Commit build output for deploy
+        run: |
+          git config user.email "ci@github-actions.local"
+          git config user.name "GitHub Actions"
+          git add -f dist static.json
+          git commit -m "Build output for Heroku deploy"
+
+      # heroku-buildpack-static serves whatever's in `dist/` (per static.json) — it
+      # doesn't run a build step itself, so dist/ must already exist (built above).
       # ubuntu-latest runners don't ship the Heroku CLI preinstalled anymore either.
       - name: Install Heroku CLI
         run: curl https://cli-assets.heroku.com/install.sh | sh
@@ -32,4 +43,3 @@ jobs:
           heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
           heroku_app_name: ${{ secrets.HEROKU_FRONTEND_APP_NAME }}
           heroku_email: ${{ secrets.HEROKU_EMAIL }}
-          appdir: .
