@@ -85,7 +85,7 @@ function SignInForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div>
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="login-email">Email</Label>
         <Input
           id="login-email"
@@ -96,7 +96,7 @@ function SignInForm() {
           required
         />
       </div>
-      <div>
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="login-password">Password</Label>
         <Input
           id="login-password"
@@ -154,7 +154,7 @@ function SignUpForm() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex gap-3">
-        <div className="flex-1">
+        <div className="flex flex-1 flex-col gap-1.5">
           <Label htmlFor="register-first-name">First name</Label>
           <Input
             id="register-first-name"
@@ -164,12 +164,12 @@ function SignUpForm() {
             required
           />
         </div>
-        <div className="flex-1">
+        <div className="flex flex-1 flex-col gap-1.5">
           <Label htmlFor="register-last-name">Last name</Label>
           <Input id="register-last-name" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
         </div>
       </div>
-      <div>
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="register-email">Email</Label>
         <Input
           id="register-email"
@@ -179,7 +179,7 @@ function SignUpForm() {
           required
         />
       </div>
-      <div>
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="register-password">Password</Label>
         <Input
           id="register-password"
