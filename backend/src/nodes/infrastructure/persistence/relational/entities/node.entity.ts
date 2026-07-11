@@ -53,6 +53,16 @@ export class NodeEntity extends EntityRelationalHelper {
   })
   type: string;
 
+  // False from `requestUpload` until `confirmUpload` verifies the S3 object actually
+  // landed — filtered out of listings so a failed/abandoned client-side upload doesn't
+  // show a "ghost" file that doesn't really exist in storage.
+  @Column({
+    nullable: false,
+    type: Boolean,
+    default: true,
+  })
+  confirmed: boolean;
+
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

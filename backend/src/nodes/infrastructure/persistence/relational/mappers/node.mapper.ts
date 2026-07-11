@@ -23,6 +23,8 @@ export class NodeMapper {
 
     domainEntity.type = raw.type;
 
+    domainEntity.confirmed = raw.confirmed;
+
     domainEntity.id = raw.id;
     domainEntity.createdAt = raw.createdAt;
     domainEntity.updatedAt = raw.updatedAt;
@@ -49,6 +51,10 @@ export class NodeMapper {
     persistenceEntity.name = domainEntity.name;
 
     persistenceEntity.type = domainEntity.type;
+
+    if (domainEntity.confirmed !== undefined) {
+      persistenceEntity.confirmed = domainEntity.confirmed;
+    }
 
     if (domainEntity.id) {
       persistenceEntity.id = domainEntity.id;

@@ -63,6 +63,18 @@ export class NodeRelationalRepository implements NodeRepository {
     return entities.map((entity) => NodeMapper.toDomain(entity));
   }
 
+  async findConfirmedChildren(
+    dataRoomId: string,
+    parentId: string,
+  ): Promise<Node[]> {
+    const entities = await this.nodeRepository.find({
+      where: { parentId, dataRoom: { id: dataRoomId }, confirmed: true },
+      relations: ['dataRoom', 'dataRoom.owner'],
+    });
+
+    return entities.map((entity) => NodeMapper.toDomain(entity));
+  }
+
   async update(id: Node['id'], payload: Partial<Node>): Promise<Node> {
     const entity = await this.nodeRepository.findOne({
       where: { id },

@@ -183,7 +183,7 @@ export class NodesService {
     userId: number | string,
   ): Promise<Node[]> {
     await this.assertValidParent(dataRoomId, parentId, userId);
-    const children = await this.nodeRepository.findChildren(
+    const children = await this.nodeRepository.findConfirmedChildren(
       dataRoomId,
       parentId,
     );
@@ -195,7 +195,7 @@ export class NodesService {
 
   async countChildren(id: string, userId: number | string): Promise<number> {
     const node = await this.findOwnedOrThrow(id, userId);
-    const children = await this.nodeRepository.findChildren(
+    const children = await this.nodeRepository.findConfirmedChildren(
       node.dataRoom!.id,
       id,
     );
@@ -206,7 +206,7 @@ export class NodesService {
    * id, not a Node's, so this can't reuse findOwnedOrThrow/countChildren above. Ownership
    * of the room itself is the caller's responsibility (DataRoomsService already checks it). */
   async countChildrenOfDataRoom(dataRoomId: string): Promise<number> {
-    const children = await this.nodeRepository.findChildren(
+    const children = await this.nodeRepository.findConfirmedChildren(
       dataRoomId,
       dataRoomId,
     );
@@ -346,10 +346,32 @@ export class NodesService {
     }
 
     await this.assertValidParent(dataRoomId, parentId, userId);
-    const siblings = await this.nodeRepository.findChildren(
+    const allSiblings = await this.nodeRepository.findChildren(
       dataRoomId,
       parentId,
     );
+
+    // Opportunistic cleanup: a node row is created below before the client actually
+    // PUTs bytes to S3, so an abandoned/failed upload (network blip, closed tab, CORS
+    // misconfig, ...) leaves a permanently-unconfirmed row behind. The presigned PUT
+    // URL itself expires after an hour (see NodeStorageService), so anything still
+    // unconfirmed past that point can never be completed — safe to drop. Piggybacked
+    // here rather than a separate cron job, since this app has no task queue.
+    const STALE_UPLOAD_MS = 60 * 60 * 1000;
+    const now = Date.now();
+    const siblings: Node[] = [];
+    for (const sibling of allSiblings) {
+      if (
+        sibling.type === 'file' &&
+        sibling.confirmed === false &&
+        now - new Date(sibling.createdAt).getTime() > STALE_UPLOAD_MS
+      ) {
+        await this.nodeRepository.remove(sibling.id);
+      } else {
+        siblings.push(sibling);
+      }
+    }
+
     const finalName = resolveUniqueName(
       siblings.map((s) => s.name),
       fileName,
@@ -364,6 +386,7 @@ export class NodesService {
       size: fileSize,
       mimeType,
       s3Key,
+      confirmed: false,
     });
 
     const uploadUrl = await this.nodeStorageService.presignUpload(
@@ -383,7 +406,8 @@ export class NodesService {
         errors: { file: 'uploadNotFound' },
       });
     }
-    return node;
+    const updated = await this.nodeRepository.update(id, { confirmed: true });
+    return updated ?? node;
   }
 
   async getDownloadUrl(id: string, userId: number | string): Promise<string> {

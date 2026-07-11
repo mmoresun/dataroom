@@ -39,6 +39,9 @@ export class Node {
   })
   type: string;
 
+  @Exclude({ toPlainOnly: true })
+  confirmed?: boolean;
+
   @ApiProperty({
     type: String,
   })

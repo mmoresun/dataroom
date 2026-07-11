@@ -18,8 +18,17 @@ export abstract class NodeRepository {
 
   abstract findByIds(ids: Node['id'][]): Promise<Node[]>;
 
-  /** Direct children of `parentId` within `dataRoomId` (folders and files alike). */
+  /** Direct children of `parentId` within `dataRoomId` (folders and files alike),
+   * including unconfirmed (not-yet-uploaded) files — use for cascade-delete/subtree
+   * collection and sibling name-collision checks, never for anything user-facing. */
   abstract findChildren(dataRoomId: string, parentId: string): Promise<Node[]>;
+
+  /** Same as `findChildren`, but excludes files still pending upload confirmation —
+   * use this for anything shown to the user (listings, counts). */
+  abstract findConfirmedChildren(
+    dataRoomId: string,
+    parentId: string,
+  ): Promise<Node[]>;
 
   abstract update(
     id: Node['id'],
