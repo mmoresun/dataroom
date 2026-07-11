@@ -27,39 +27,37 @@ Two independent apps: this repo's root (frontend, Vite) and `backend/` (NestJS A
 
 **Prerequisites:** Node 22+ (developed against Node 24), Docker + Docker Compose (for local Postgres/Adminer/Maildev), an AWS S3 bucket (for PDF upload/download — see note below).
 
-#### 1. Backend: local services
+#### 1. Backend: environment
+
+`docker compose` (next step) reads `backend/.env` for port numbers, so this has to come first — create it now, starting from the vendored template:
 
 ```bash
 cd backend
-docker compose up -d postgres adminer maildev   # NOT `api` — we run Nest directly on the host below
+cp env-example-relational .env
 ```
 
-This starts Postgres, [Adminer](http://localhost:8082) (a DB admin UI), and [Maildev](http://localhost:1080) (catches outgoing emails locally instead of sending them).
-
-#### 2. Backend: environment
-
-Create `backend/.env`. The vendored `env-example-relational` is the upstream boilerplate's own template — this project uses different values in a few places (documented in `backend/CLAUDE.md`), most importantly:
+Then edit `.env`, overriding these values (the rest of the vendor template's defaults are fine as-is; differences documented in `backend/CLAUDE.md`):
 
 ```env
 DATABASE_HOST=localhost
 DATABASE_PORT=5433        # not 5432 — avoids clashing with a native Postgres install; matches docker-compose.yaml
-DATABASE_USERNAME=root
-DATABASE_PASSWORD=secret
-DATABASE_NAME=api
 FILE_DRIVER=s3-presigned
 ACCESS_KEY_ID=...         # your AWS credentials
 SECRET_ACCESS_KEY=...
 AWS_S3_REGION=...
 AWS_DEFAULT_S3_BUCKET=...
-AUTH_JWT_SECRET=...        # any random string for local dev
-AUTH_REFRESH_SECRET=...
-AUTH_FORGOT_SECRET=...
-AUTH_CONFIRM_EMAIL_SECRET=...
-GOOGLE_CLIENT_ID=...       # optional — only needed to test Google sign-in
-GOOGLE_CLIENT_SECRET=...
 FRONTEND_DOMAIN=http://localhost:5173
-BACKEND_DOMAIN=http://localhost:3001
 ```
+
+(`AUTH_JWT_SECRET` and friends can keep the vendor template's placeholder values for local dev — they only need to be real random secrets in production.)
+
+#### 2. Backend: local services
+
+```bash
+docker compose up -d postgres adminer maildev   # NOT `api` — we run Nest directly on the host below
+```
+
+This starts Postgres, [Adminer](http://localhost:8082) (a DB admin UI), and [Maildev](http://localhost:1080) (catches outgoing emails locally instead of sending them).
 
 **Note on file storage:** folder/file upload in this app always talks to S3 directly via presigned URLs (`src/nodes/node-storage.service.ts`) — this isn't gated by `FILE_DRIVER` (that setting only affects the vendored boilerplate's own unrelated user-avatar upload feature). To exercise upload/view locally you need a real S3 bucket with CORS allowing `http://localhost:5173` for `GET`/`PUT`/`HEAD` (see `backend/CLAUDE.md`'s "Uploads/downloads" section for why the architecture is shaped this way). Without it, everything except PDF upload/view still works.
 
@@ -208,39 +206,37 @@ src/
 
 **Передумови:** Node 22+ (розроблено на Node 24), Docker + Docker Compose (для локальних Postgres/Adminer/Maildev), бакет AWS S3 (для завантаження/перегляду PDF — див. примітку нижче).
 
-#### 1. Бекенд: локальні сервіси
+#### 1. Бекенд: середовище
+
+`docker compose` (наступний крок) читає порти з `backend/.env`, тож спершу створіть його з вендорного шаблону:
 
 ```bash
 cd backend
-docker compose up -d postgres adminer maildev   # НЕ `api` — Nest запускаємо напряму на хості нижче
+cp env-example-relational .env
 ```
 
-Піднімає Postgres, [Adminer](http://localhost:8082) (UI для БД) і [Maildev](http://localhost:1080) (перехоплює вихідні листи локально, замість реальної відправки).
-
-#### 2. Бекенд: середовище
-
-Створіть `backend/.env`. Вендорний `env-example-relational` — це шаблон самого апстрім-бойлерплейта; цей проєкт використовує інші значення в кількох місцях (задокументовано в `backend/CLAUDE.md`), найважливіше:
+Потім відредагуйте `.env`, змінивши ці значення (решта дефолтів вендорного шаблону підходять як є; відмінності задокументовані в `backend/CLAUDE.md`):
 
 ```env
 DATABASE_HOST=localhost
 DATABASE_PORT=5433        # не 5432 — щоб не конфліктувати з нативним Postgres; відповідає docker-compose.yaml
-DATABASE_USERNAME=root
-DATABASE_PASSWORD=secret
-DATABASE_NAME=api
 FILE_DRIVER=s3-presigned
 ACCESS_KEY_ID=...         # ваші AWS-креденшали
 SECRET_ACCESS_KEY=...
 AWS_S3_REGION=...
 AWS_DEFAULT_S3_BUCKET=...
-AUTH_JWT_SECRET=...        # будь-який випадковий рядок для локальної розробки
-AUTH_REFRESH_SECRET=...
-AUTH_FORGOT_SECRET=...
-AUTH_CONFIRM_EMAIL_SECRET=...
-GOOGLE_CLIENT_ID=...       # опційно — лише для тестування входу через Google
-GOOGLE_CLIENT_SECRET=...
 FRONTEND_DOMAIN=http://localhost:5173
-BACKEND_DOMAIN=http://localhost:3001
 ```
+
+(`AUTH_JWT_SECRET` і подібні можуть залишатися плейсхолдерами з вендорного шаблону для локальної розробки — реальні випадкові секрети потрібні лише в проді.)
+
+#### 2. Бекенд: локальні сервіси
+
+```bash
+docker compose up -d postgres adminer maildev   # НЕ `api` — Nest запускаємо напряму на хості нижче
+```
+
+Піднімає Postgres, [Adminer](http://localhost:8082) (UI для БД) і [Maildev](http://localhost:1080) (перехоплює вихідні листи локально, замість реальної відправки).
 
 **Про сховище файлів:** завантаження файлів у цьому застосунку завжди йде напряму в S3 через presigned URL (`src/nodes/node-storage.service.ts`) — це не залежить від `FILE_DRIVER` (це налаштування впливає лише на окрему, непов'язану функцію завантаження аватарів користувачів із вендорного бойлерплейту). Щоб перевірити завантаження/перегляд локально, потрібен реальний S3-бакет з CORS, що дозволяє `http://localhost:5173` для `GET`/`PUT`/`HEAD` (див. розділ "Uploads/downloads" у `backend/CLAUDE.md` про те, чому архітектура саме така). Без цього все, крім завантаження/перегляду PDF, працює.
 
