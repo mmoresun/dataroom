@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { AuthContext } from '@/hooks/useAuth';
-import { clearTokens, storeTokens, TOKEN_KEY } from '@/lib/api/client';
+import { clearToken, storeToken, TOKEN_KEY } from '@/lib/api/client';
 import {
   fetchMe,
   loginWithEmail as apiLoginWithEmail,
@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => {
         // apiFetch already tried a silent refresh internally before this rejected,
         // so a failure here means the refresh token itself is invalid/expired too.
-        clearTokens();
+        clearToken();
         setAccessToken(null);
         setUser(null);
       })
@@ -37,8 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const applyLogin = ({ token, refreshToken, user }: LoginResponse) => {
-    storeTokens(token, refreshToken);
+  const applyLogin = ({ token, user }: LoginResponse) => {
+    storeToken(token);
     setAccessToken(token);
     setUser(user);
   };
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Best-effort — clear local state regardless of whether the server call succeeded.
       }
     }
-    clearTokens();
+    clearToken();
     setAccessToken(null);
     setUser(null);
   };

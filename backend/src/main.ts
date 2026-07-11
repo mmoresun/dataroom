@@ -8,15 +8,25 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { useContainer } from 'class-validator';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import validationOptions from './utils/validation-options';
 import { AllConfigType } from './config/config.type';
 import { ResolvePromisesInterceptor } from './utils/serializer.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { cors: true });
+  const app = await NestFactory.create(AppModule);
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
   const configService = app.get(ConfigService<AllConfigType>);
+
+  app.use(cookieParser());
+  // The refresh token travels as an httpOnly cookie (see refresh-cookie.util.ts), which
+  // requires the exact frontend origin here rather than the previous blanket `cors: true`
+  // — browsers reject `Access-Control-Allow-Origin: *` combined with credentialed requests.
+  app.enableCors({
+    origin: configService.get('app.frontendDomain', { infer: true }),
+    credentials: true,
+  });
 
   app.enableShutdownHooks();
   app.setGlobalPrefix(

@@ -6,11 +6,13 @@ import {
   HttpStatus,
   Request,
   Post,
+  Res,
   UseGuards,
   Patch,
   Delete,
   SerializeOptions,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
@@ -24,6 +26,7 @@ import { LoginResponseDto } from './dto/login-response.dto';
 import { NullableType } from '../utils/types/nullable.type';
 import { User } from '../users/domain/user';
 import { RefreshResponseDto } from './dto/refresh-response.dto';
+import { clearRefreshCookie, setRefreshCookie } from './refresh-cookie.util';
 
 @ApiTags('Auth')
 @Controller({
@@ -41,8 +44,17 @@ export class AuthController {
     type: LoginResponseDto,
   })
   @HttpCode(HttpStatus.OK)
-  public login(@Body() loginDto: AuthEmailLoginDto): Promise<LoginResponseDto> {
-    return this.service.validateLogin(loginDto);
+  public async login(
+    @Body() loginDto: AuthEmailLoginDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<Omit<LoginResponseDto, 'refreshToken'>> {
+    const result = await this.service.validateLogin(loginDto);
+    setRefreshCookie(response, result.refreshToken);
+    return {
+      token: result.token,
+      tokenExpires: result.tokenExpires,
+      user: result.user,
+    };
   }
 
   @Post('email/register')
@@ -108,18 +120,27 @@ export class AuthController {
   @Post('refresh')
   @UseGuards(AuthGuard('jwt-refresh'))
   @HttpCode(HttpStatus.OK)
-  public refresh(@Request() request): Promise<RefreshResponseDto> {
-    return this.service.refreshToken({
+  public async refresh(
+    @Request() request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<Omit<RefreshResponseDto, 'refreshToken'>> {
+    const result = await this.service.refreshToken({
       sessionId: request.user.sessionId,
       hash: request.user.hash,
     });
+    setRefreshCookie(response, result.refreshToken);
+    return { token: result.token, tokenExpires: result.tokenExpires };
   }
 
   @ApiBearerAuth()
   @Post('logout')
   @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.NO_CONTENT)
-  public async logout(@Request() request): Promise<void> {
+  public async logout(
+    @Request() request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    clearRefreshCookie(response);
     await this.service.logout({
       sessionId: request.user.sessionId,
     });

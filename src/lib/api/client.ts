@@ -6,11 +6,10 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
 /** Shared source of truth for the persisted access token — read here on every
- * request, and by AuthProvider when it writes/clears it on login/logout. */
+ * request, and by AuthProvider when it writes/clears it on login/logout. The refresh
+ * token is NOT kept here (or anywhere JS-readable) — the backend sets it as an
+ * httpOnly cookie, so this app never sees its value at all. */
 export const TOKEN_KEY = 'dataroom-auth-token';
-/** The refresh token — long-lived (see backend/CLAUDE.md), used to silently obtain a
- * new access token once the short-lived one (15m) expires, without forcing a re-login. */
-export const REFRESH_TOKEN_KEY = 'dataroom-auth-refresh-token';
 
 export class ApiError extends Error {
   status: number;
@@ -28,16 +27,12 @@ interface RequestOptions {
   body?: unknown;
 }
 
-/** Persists a fresh token pair — the single place that writes these keys, so login,
- * Google sign-in, and the silent-refresh path below all stay consistent. */
-export function storeTokens(token: string, refreshToken: string): void {
+export function storeToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 }
 
-export function clearTokens(): void {
+export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 /** "incorrectPassword" -> "Incorrect password" */
@@ -67,6 +62,9 @@ function extractErrorMessage(data: unknown, status: number): string {
 async function rawFetch(path: string, opts: RequestOptions, token: string | null): Promise<Response> {
   return fetch(`${API_URL}${path}`, {
     method: opts.method ?? 'GET',
+    // Required so the browser sends/stores the httpOnly refresh-token cookie, which
+    // lives on the backend's origin — a different site from this app in production.
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -77,25 +75,24 @@ async function rawFetch(path: string, opts: RequestOptions, token: string | null
 
 /** Dedupes concurrent refresh attempts — several requests can 401 around the same
  * moment (e.g. a page that fires off several fetches at once), and they should all
- * wait on one /auth/refresh call rather than racing to invalidate each other's new
- * refresh token (the backend rotates it on every use). */
+ * wait on one /auth/refresh call rather than firing it multiple times in parallel. */
 let refreshInFlight: Promise<boolean> | null = null;
 
 async function refreshAccessToken(): Promise<boolean> {
   refreshInFlight ??= (async () => {
-    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-    if (!refreshToken) return false;
     try {
-      const res = await rawFetch('/auth/refresh', { method: 'POST' }, refreshToken);
+      // No token passed here — the refresh token travels via the httpOnly cookie,
+      // attached automatically by the browser (credentials: 'include' above).
+      const res = await rawFetch('/auth/refresh', { method: 'POST' }, null);
       if (!res.ok) {
-        clearTokens();
+        clearToken();
         return false;
       }
-      const data = (await res.json()) as { token: string; refreshToken: string };
-      storeTokens(data.token, data.refreshToken);
+      const data = (await res.json()) as { token: string };
+      storeToken(data.token);
       return true;
     } catch {
-      clearTokens();
+      clearToken();
       return false;
     }
   })();
@@ -108,14 +105,14 @@ async function refreshAccessToken(): Promise<boolean> {
 
 /** Thin fetch wrapper for the backend API — JSON in, JSON out, throws ApiError on non-2xx.
  * Attaches the persisted access token automatically; callers never pass it explicitly.
- * On a 401 (expired 15-minute access token), transparently refreshes via the long-lived
- * refresh token and retries once before giving up — the user only actually gets logged
- * out if the refresh token itself is invalid/expired. */
+ * On a 401 (expired 15-minute access token), transparently refreshes via the httpOnly
+ * refresh-token cookie and retries once before giving up — the user only actually gets
+ * logged out if the refresh token itself is invalid/expired. */
 export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const token = localStorage.getItem(TOKEN_KEY);
   let res = await rawFetch(path, opts, token);
 
-  if (res.status === 401 && path !== '/auth/refresh' && localStorage.getItem(REFRESH_TOKEN_KEY)) {
+  if (res.status === 401 && path !== '/auth/refresh') {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
       res = await rawFetch(path, opts, localStorage.getItem(TOKEN_KEY));

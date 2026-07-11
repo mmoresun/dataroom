@@ -8,6 +8,19 @@ import {
   MAIL_PORT,
 } from '../utils/constants';
 
+// The refresh token now travels as an httpOnly cookie rather than in the response
+// body (see backend/src/auth/refresh-cookie.util.ts) — extract it from `set-cookie`.
+function extractRefreshCookie(res: {
+  headers: Record<string, unknown>;
+}): string {
+  const setCookie = res.headers['set-cookie'] as unknown as
+    | string[]
+    | undefined;
+  const cookie = setCookie?.find((c) => c.startsWith('refreshToken='));
+  if (!cookie) throw new Error('No refreshToken cookie in response');
+  return cookie.split(';')[0].split('=')[1];
+}
+
 describe('Auth Module', () => {
   const app = APP_URL;
   const mail = `http://${MAIL_HOST}:${MAIL_PORT}`;
@@ -109,13 +122,13 @@ describe('Auth Module', () => {
         .post('/api/v1/auth/email/login')
         .send({ email: newUserEmail, password: newUserPassword })
         .expect(200)
-        .expect(({ body }) => {
-          expect(body.token).toBeDefined();
-          expect(body.refreshToken).toBeDefined();
-          expect(body.tokenExpires).toBeDefined();
-          expect(body.user.email).toBeDefined();
-          expect(body.user.hash).not.toBeDefined();
-          expect(body.user.password).not.toBeDefined();
+        .expect((res) => {
+          expect(res.body.token).toBeDefined();
+          expect(extractRefreshCookie(res)).toBeDefined();
+          expect(res.body.tokenExpires).toBeDefined();
+          expect(res.body.user.email).toBeDefined();
+          expect(res.body.user.hash).not.toBeDefined();
+          expect(res.body.user.password).not.toBeDefined();
         });
     });
   });
@@ -151,7 +164,7 @@ describe('Auth Module', () => {
       let newUserRefreshToken = await request(app)
         .post('/api/v1/auth/email/login')
         .send({ email: newUserEmail, password: newUserPassword })
-        .then(({ body }) => body.refreshToken);
+        .then(extractRefreshCookie);
 
       newUserRefreshToken = await request(app)
         .post('/api/v1/auth/refresh')
@@ -159,7 +172,7 @@ describe('Auth Module', () => {
           type: 'bearer',
         })
         .send()
-        .then(({ body }) => body.refreshToken);
+        .then(extractRefreshCookie);
 
       await request(app)
         .post('/api/v1/auth/refresh')
@@ -167,10 +180,10 @@ describe('Auth Module', () => {
           type: 'bearer',
         })
         .send()
-        .expect(({ body }) => {
-          expect(body.token).toBeDefined();
-          expect(body.refreshToken).toBeDefined();
-          expect(body.tokenExpires).toBeDefined();
+        .expect((res) => {
+          expect(res.body.token).toBeDefined();
+          expect(extractRefreshCookie(res)).toBeDefined();
+          expect(res.body.tokenExpires).toBeDefined();
         });
     });
 
@@ -178,7 +191,7 @@ describe('Auth Module', () => {
       const newUserRefreshToken = await request(app)
         .post('/api/v1/auth/email/login')
         .send({ email: newUserEmail, password: newUserPassword })
-        .then(({ body }) => body.refreshToken);
+        .then(extractRefreshCookie);
 
       await request(app)
         .post('/api/v1/auth/refresh')
