@@ -66,7 +66,7 @@ Currently a client-only concern (Web Locks API, one browser tab vs another). A r
 Vendored from [brocoders/nestjs-boilerplate](https://github.com/brocoders/nestjs-boilerplate) (fetched via `degit`, no upstream git history). Configured choices, made non-interactively since its `app:config` prompt needs a TTY we don't have in an agent shell (see `.install-scripts/non-interactive-config.ts`, a one-off script that calls the boilerplate's own vetted removal functions directly — safe to delete once you're happy with the result, it's not needed again):
 
 - **Database**: PostgreSQL + TypeORM only (Mongoose/document persistence stripped).
-- **Auth**: email/password + **Google** social sign-in only (Facebook/Apple modules removed — `AuthFacebookModule`/`AuthAppleModule` no longer exist). JWT access/refresh tokens with real generated secrets in `backend/.env` (not the vendor placeholder values).
+- **Auth**: email/password + **Google** social sign-in only (Facebook/Apple modules removed — `AuthFacebookModule`/`AuthAppleModule` no longer exist). JWT access/refresh tokens — **production** `backend/.env` (Heroku config vars) uses real generated secrets; for **local dev**, the vendor template's placeholder values in `env-example-relational` work fine as-is (see root `README.md`'s "Local Development Setup").
 - **Ports are non-default** because of local conflicts on this dev machine — check `backend/.env` / `backend/docker-compose.yaml` before assuming the vendor docs' default ports:
   - Postgres: **5433** (5432 was already bound by a native Windows Postgres install)
   - Adminer: **8082** (8080 was already bound by another local process)

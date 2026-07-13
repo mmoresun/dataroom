@@ -61,7 +61,9 @@ This starts Postgres, [Adminer](http://localhost:8082) (a DB admin UI), and [Mai
 
 **Note on file storage:** folder/file upload in this app always talks to S3 directly via presigned URLs (`src/nodes/node-storage.service.ts`) — this isn't gated by `FILE_DRIVER` (that setting only affects the vendored boilerplate's own unrelated user-avatar upload feature). To exercise upload/view locally you need a real S3 bucket with CORS allowing `http://localhost:5173` for `GET`/`PUT`/`HEAD` (see `backend/CLAUDE.md`'s "Uploads/downloads" section for why the architecture is shaped this way). Without it, everything except PDF upload/view still works.
 
-**Note on Google sign-in:** optional — email/password auth works out of the box. To test Google sign-in locally, create an OAuth client in Google Cloud Console with `http://localhost:5173` as an authorized JavaScript origin.
+**Note on Google sign-in:** optional — email/password auth works out of the box. To test Google sign-in locally, create an OAuth client in Google Cloud Console with `http://localhost:5173` as an authorized JavaScript origin, then put its client ID/secret into **both** places — they must be the same client on both sides, or the backend rejects the token with an audience mismatch:
+- `backend/.env`: `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+- root `.env`: `VITE_GOOGLE_CLIENT_ID` (same client ID as above)
 
 #### 3. Backend: install, migrate, seed, run
 
@@ -240,7 +242,9 @@ docker compose up -d postgres adminer maildev   # НЕ `api` — Nest запус
 
 **Про сховище файлів:** завантаження файлів у цьому застосунку завжди йде напряму в S3 через presigned URL (`src/nodes/node-storage.service.ts`) — це не залежить від `FILE_DRIVER` (це налаштування впливає лише на окрему, непов'язану функцію завантаження аватарів користувачів із вендорного бойлерплейту). Щоб перевірити завантаження/перегляд локально, потрібен реальний S3-бакет з CORS, що дозволяє `http://localhost:5173` для `GET`/`PUT`/`HEAD` (див. розділ "Uploads/downloads" у `backend/CLAUDE.md` про те, чому архітектура саме така). Без цього все, крім завантаження/перегляду PDF, працює.
 
-**Про вхід через Google:** опційно — автентифікація email/пароль працює одразу. Щоб перевірити вхід через Google локально, створіть OAuth-клієнт у Google Cloud Console з `http://localhost:5173` як authorized JavaScript origin.
+**Про вхід через Google:** опційно — автентифікація email/пароль працює одразу. Щоб перевірити вхід через Google локально, створіть OAuth-клієнт у Google Cloud Console з `http://localhost:5173` як authorized JavaScript origin, тоді пропишіть його client ID/secret **в обох місцях** — це має бути той самий клієнт з обох боків, інакше бекенд відхилить токен через невідповідність audience:
+- `backend/.env`: `GOOGLE_CLIENT_ID` і `GOOGLE_CLIENT_SECRET`
+- кореневий `.env`: `VITE_GOOGLE_CLIENT_ID` (той самий client ID, що й вище)
 
 #### 3. Бекенд: встановлення, міграції, сіди, запуск
 

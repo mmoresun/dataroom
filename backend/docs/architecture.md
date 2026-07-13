@@ -1,5 +1,7 @@
 # Architecture
 
+> **⚠️ Unmodified vendor doc.** Describes the boilerplate's general hexagonal architecture including the Mongoose/MongoDB variant, which was removed from this project (TypeORM/PostgreSQL only). See root `README.md`/`CLAUDE.md` for what's actually current.
+
 ---
 
 ## Table of Contents <!-- omit in toc -->

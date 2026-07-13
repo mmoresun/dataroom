@@ -1,5 +1,7 @@
 # Introduction
 
+> **⚠️ Unmodified vendor doc**, kept for attribution/reference. See root `README.md`/`CLAUDE.md` for this project's actual architecture and setup.
+
 ## Online demo
 
 Demo: <https://nestjs-boilerplate-test.herokuapp.com/docs>

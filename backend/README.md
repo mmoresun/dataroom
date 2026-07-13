@@ -11,6 +11,8 @@
 <p align="center"><a href="https://discord.com/channels/520622812742811698/1197293125434093701"><img src="https://github.com/brocoders/nestjs-boilerplate/assets/72293912/c9d5fbf0-b56d-46b5-bb30-f96f44764bae" width="300"/></a></p>
 <br />
 
+> **⚠️ This is the unmodified vendor README** for the boilerplate this project started from — kept as-is for attribution. Some of what it describes (the Mongoose/MongoDB variant, CLI resource generators, `docker-compose.document.yaml`) has since been **removed** from this repo. For this project's actual setup, see the root [`README.md`](../README.md) ("Local Development Setup") and [`CLAUDE.md`](../CLAUDE.md), plus [`backend/CLAUDE.md`](../backend/CLAUDE.md) for backend-specific notes.
+
 ## Description <!-- omit in toc -->
 
 NestJS REST API boilerplate for a typical project

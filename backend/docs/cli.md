@@ -1,5 +1,7 @@
 # Command Line Interface (CLI)
 
+> **⚠️ Unmodified vendor doc.** This project's CLI resource generators (`generate:resource:*`, `add:property:to-*`, hygen templates) were removed — this repo isn't meant to be extended as a template, so entities are hand-written. See root `README.md`/`CLAUDE.md` for what's actually current.
+
 ---
 
 ## Table of Contents <!-- omit in toc -->

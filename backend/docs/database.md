@@ -1,5 +1,7 @@
 # Database
 
+> **⚠️ Unmodified vendor doc.** This project uses TypeORM/PostgreSQL only — the Mongoose/MongoDB variant described below was removed. See root `README.md`/`CLAUDE.md` for what's actually current.
+
 ## Table of Contents <!-- omit in toc -->
 
 - [About databases](#about-databases)
